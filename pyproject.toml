@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "redcap_toolbox"
+version = "2024.7.8.1"
+authors = [
+    { name="Nate Vack", email="njvack@wisc.edu"},
+    { name="Nicholas Vanhaute", email="nvanhaute@wisc.edu" },
+]
+
+description = "A collection of tools to interact with the REDCap API"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "certifi>=2024.7.4",
+    "charset-normalizer>=3.3.2",
+    "docopt>=0.6.2",
+    "idna>=3.7",
+    "numpy>=2.0.0",
+    "pandas>=2.2.2",
+    "pycap>=2.6.0",
+    "python-dateutil>=2.9.0.post0",
+    "pytz>=2024.1",
+    "requests>=2.32.3",
+    "semantic-version>=2.10.0",
+    "six>=1.16.0",
+    "tzdata>=2024.1",
+    "urllib3>=2.2.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/uwmadison-chm/redcap-toolbox"
+Issues = "https://github.com/uwmadison-chm/redcap-toolbox/issues"
+
+[project.scripts]
+download_redcap = "redcap_toolbox.download_redcap:main"
+split_redcap_data = "redcap_toolbox.split_redcap_data:main"
+update_redcap_diff = "redcap_toolbox.update_redcap_diff:main"
