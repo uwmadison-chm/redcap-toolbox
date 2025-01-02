@@ -5,7 +5,6 @@ A function to return a dict with the minimal changes to transform
 one dataframe to another (identically-shaped) dataframe.
 """
 
-
 from collections.abc import Iterable
 
 
