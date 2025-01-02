@@ -1,15 +1,12 @@
 #!/usr/bin/env python
 
 """
-Download the data for a REDCap study to a CSV files. Optionally
-takes a filename with a list of forms to skip from the download, one per
-line.
+Download the data for a REDCap study to a CSV files. Optionally takes a
+filename with a list of forms to skip from the download, one per line.
 
 Relies on the environment variables REDCAP_API_URL and REDCAP_API_TOKEN.
 
-Developed for the afchron project, modified for CaHMP-Ed 2
-
-Witten by Nate Vack <njvack@wisc.edu> and Dan Fitch <dfitch@wisc.edu>
+Written by Nate Vack <njvack@wisc.edu> and Dan Fitch <dfitch@wisc.edu>
 
 Usage:
   download_redcap.py [options] <output_file>
@@ -22,18 +19,16 @@ Options:
   -d --debug       Print debugging output
 """
 
-
-import os
-
-from docopt import docopt
-import redcap
-
 import logging
+import os
+from pathlib import Path
+
+import redcap
+from docopt import docopt
 
 logging.basicConfig(format="%(message)s")
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
 
 API_URL = os.environ["REDCAP_API_URL"]
 API_TOK = os.environ["REDCAP_API_TOKEN"]
@@ -58,12 +53,15 @@ def download_redcap(out_file, form_list_file, export_survey_fields):
     with open(out_file, "w", encoding="utf8") as f:
         f.write(data)
 
+
 def main():
     args = docopt(__doc__)
     if args["--debug"]:
         logger.setLevel(logging.DEBUG)
     logger.debug(args)
-    download_redcap(args["<output_file>"], args["--forms"], args["--survey-fields"])
+    download_redcap(
+        Path(args["<output_file>"]), args["--forms"], args["--survey-fields"]
+    )
 
 
 if __name__ == "__main__":
