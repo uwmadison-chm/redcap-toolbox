@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-# Copyright 2022 Board of Regents of the University of Wisconsin System
-# Written by Nate Vack <njvack@wisc.edu>
-# Source is available at https://github.com/uwmadison-chm/redcap-tools
 
 """
 Takes a REDCap CSV file and splits it into:

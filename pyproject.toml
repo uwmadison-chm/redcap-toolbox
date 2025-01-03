@@ -4,35 +4,48 @@ build-backend = "hatchling.build"
 
 [project]
 name = "redcap_toolbox"
-version = "2024.7.8.1"
+version = "2025.3.1"
 authors = [
     { name="Nate Vack", email="njvack@wisc.edu"},
+]
+maintainers = [
+    { name="Nate Vack", email="njvack@wisc.edu"},
     { name="Nicholas Vanhaute", email="nvanhaute@wisc.edu" },
+    { name="Stuti Shrivastava", email="sshrivastav6@wisc.edu" }
 ]
 
 description = "A collection of tools to interact with the REDCap API"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
-    "Programming Language :: Python :: 3",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
 ]
 dependencies = [
-    "certifi>=2024.7.4",
-    "charset-normalizer>=3.3.2",
-    "docopt>=0.6.2",
-    "idna>=3.7",
-    "numpy>=2.0.0",
-    "pandas>=2.2.2",
+    "certifi>=2024.12.14",
+    "charset-normalizer>=3.4.1",
+    "docopt-ng>=0.9.0",
+    "idna>=3.10",
+    "numpy>=2.2.1",
+    "pandas>=2.2.3",
     "pycap>=2.6.0",
     "python-dateutil>=2.9.0.post0",
-    "pytz>=2024.1",
+    "pytz>=2024.2",
     "requests>=2.32.3",
     "semantic-version>=2.10.0",
-    "six>=1.16.0",
-    "tzdata>=2024.1",
-    "urllib3>=2.2.2",
+    "six>=1.17.0",
+    "tzdata>=2024.2",
+    "urllib3>=2.3.0",
+]
+
+[project.optional-dependencies]
+tests = [
+    "pluggy>=1.5.0",
+    "pytest>=8.3.4",
 ]
 
 [project.urls]
@@ -43,3 +56,4 @@ Issues = "https://github.com/uwmadison-chm/redcap-toolbox/issues"
 download_redcap = "redcap_toolbox.download_redcap:main"
 split_redcap_data = "redcap_toolbox.split_redcap_data:main"
 update_redcap_diff = "redcap_toolbox.update_redcap_diff:main"
+download_redcap_report = "redcap_toolbox.download_redcap_report:main"
