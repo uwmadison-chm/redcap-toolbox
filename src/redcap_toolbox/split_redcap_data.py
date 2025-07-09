@@ -108,11 +108,9 @@ def condense_df(df, condense_rows=True, condense_cols=True):
       df_rows_cleaned = df[~(df[rowdrop_cols] == "").all(axis=1)]
     cols_to_keep = df.columns
     if condense_cols:
-      cols_to_keep = [
-        col for col in df_rows_cleaned.columns if not (df_rows_cleaned[col] == "").all()
-      ]
+      cols_to_keep = cols_to_keep = ~(df_rows_cleaned == "").all(axis=0)
 
-    return df_rows_cleaned[cols_to_keep].copy()
+    return df_rows_cleaned.loc[:, cols_to_keep].copy()
 
 
 def split_redcap_data(
