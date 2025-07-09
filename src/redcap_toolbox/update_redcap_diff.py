@@ -11,6 +11,7 @@ REDCAP_API_TOKEN
 Usage: update_redcap_diff.py [options] <base_csv> <updated_csv>
 
 Options:
+    --allow-new   Allow adding new rows to REDCap.
     --dry-run     Don't actually make changes.
     -h --help     Show this screen.
     -v --verbose  Show debug logging.
@@ -29,16 +30,13 @@ logging.basicConfig(format="%(message)s")
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-try:
-    API_URL = os.environ["REDCAP_API_URL"]
-    API_TOK = os.environ["REDCAP_API_TOKEN"]
-except KeyError:
-    logger.error("REDCAP_API_URL and REDCAP_API_TOKEN must both be set!")
-    sys.exit(1)
-PROJ = redcap.Project(API_URL, API_TOK)
+# Initialize these as None - they'll be set in main()
+API_URL = None
+API_TOK = None
+PROJ = None
 
 
-def update_redcap_diff(base_csv, updated_csv, dry_run):
+def update_redcap_diff(base_csv, updated_csv, dry_run, allow_new=False):
     base_df = pd.read_csv(
         base_csv, dtype=str, na_values=["nan", "NaN"], keep_default_na=False
     )
@@ -52,7 +50,9 @@ def update_redcap_diff(base_csv, updated_csv, dry_run):
     )
     updated_df.set_index(index_cols, inplace=True)
 
-    diffs = redcap_toolbox.minchange.transformation_dicts(base_df, updated_df)
+    diffs = redcap_toolbox.minchange.transformation_dicts(
+        base_df, updated_df, allow_new=allow_new
+    )
     if len(diffs) == 0:
         logger.info("No changes to make")
         return
@@ -67,11 +67,27 @@ def update_redcap_diff(base_csv, updated_csv, dry_run):
 
 
 def main():
+    global API_URL, API_TOK, PROJ
+
+    # Initialize API connection
+    try:
+        API_URL = os.environ["REDCAP_API_URL"]
+        API_TOK = os.environ["REDCAP_API_TOKEN"]
+    except KeyError:
+        logger.error("REDCAP_API_URL and REDCAP_API_TOKEN must both be set!")
+        sys.exit(1)
+    PROJ = redcap.Project(API_URL, API_TOK)
+
     args = docopt.docopt(__doc__)
     if args["--verbose"]:
         logger.setLevel(logging.DEBUG)
     logger.debug(args)
-    update_redcap_diff(args["<base_csv>"], args["<updated_csv>"], args["--dry-run"])
+    update_redcap_diff(
+        args["<base_csv>"],
+        args["<updated_csv>"],
+        args["--dry-run"],
+        args["--allow-new"],
+    )
 
 
 if __name__ == "__main__":

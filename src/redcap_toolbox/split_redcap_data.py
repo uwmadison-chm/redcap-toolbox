@@ -86,8 +86,14 @@ def split_data(data, event_map):
     return dataframes
 
 
-def condense_df(df):
-    df = df.replace("", float("nan"))
+def condense_df(df, condense_rows=True, condense_cols=True):
+    """
+    Drop any rows and columns with only blank values
+    This is not a super great way to do this, as it means the shape of the data we write
+    (columns in particular) will depend on the content of the data.
+    A better way to do this would be to make a list of what columns should appear in
+    which events using the API and filter using that list. That's not so simple, though.
+    """
     index_col = df.columns[0]
     reserved_cols = {
         index_col,
@@ -95,10 +101,18 @@ def condense_df(df):
         "redcap_repeat_instrument",
         "redcap_repeat_instance",
     }
-    rowdrop_cols = set(df.columns) - reserved_cols
-    df.dropna(axis="index", how="all", subset=rowdrop_cols).dropna()
-    col_condensed = df.dropna(axis="columns", how="all")
-    return col_condensed
+    rowdrop_cols = list(set(df.columns) - reserved_cols)
+    
+    df_rows_cleaned = df
+    if condense_rows:
+      df_rows_cleaned = df[~(df[rowdrop_cols] == "").all(axis=1)]
+    cols_to_keep = df.columns
+    if condense_cols:
+      cols_to_keep = [
+        col for col in df_rows_cleaned.columns if not (df_rows_cleaned[col] == "").all()
+      ]
+
+    return df_rows_cleaned[cols_to_keep].copy()
 
 
 def split_redcap_data(

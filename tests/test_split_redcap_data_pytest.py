@@ -13,7 +13,7 @@ from src.redcap_toolbox.split_redcap_data import (
     condense_df,
     split_redcap_data,
 )
-from tests.DataFrameSetup import DataFrameSetup
+from tests.dataframe_factory import create_standard_df
 
 
 @pytest.fixture
@@ -30,21 +30,11 @@ def event_df():
 
 
 @pytest.fixture
-def df():
+def instance_data():
     """
-    This fixture provides the base `DataFrameSetup` instance and
-    is used across several tests.
+    Creates test data with updated redcap_repeat_instrument column.
     """
-    return DataFrameSetup()
-
-
-@pytest.fixture
-def instance_data(df: DataFrameSetup):
-    """
-    Depends on df fixture and updates the redcap_repeat_instrument column
-    for specific cases.
-    """
-    data = df.source_df.copy().reset_index()
+    data = create_standard_df().reset_index()
     data.update({"redcap_repeat_instrument": ["", "", "meds"]})
     return data
 
@@ -53,12 +43,11 @@ def instance_data(df: DataFrameSetup):
 @patch("src.redcap_toolbox.split_redcap_data.pd.read_csv")
 def split_data_setup(
     mock_read_csv,
-    df: DataFrameSetup,
     event_df: pd.DataFrame,
     instance_data: pd.DataFrame,
 ):
     # Mock dataset and event map
-    data = instance_data.set_index(df.source_index)
+    data = instance_data.set_index(["record_id", "redcap_event_name"])
 
     event_df.set_index("redcap_event", inplace=True)
     mock_read_csv.return_value = event_df
@@ -68,11 +57,13 @@ def split_data_setup(
 
 
 @pytest.fixture
-def condense_df_setup(df: DataFrameSetup):
-    # Mock dataset
-    data = df.source_df.copy().reset_index()
+def condense_df_setup():
+    """
+    Creates test data for condense_df tests.
+    """
+    data = create_standard_df().reset_index()
     data.update({"redcap_event_name": ["scr", "scr", "pre"], "field2": ["", "", ""]})
-    data = data.set_index(df.source_index)
+    data = data.set_index(["record_id", "redcap_event_name"])
     return data
 
 
@@ -156,7 +147,6 @@ def test_split_redcap_data(
     mock_make_event_map,
     mock_to_csv,
     mock_read_csv,
-    df: DataFrameSetup,
     event_df: pd.DataFrame,
     instance_data: pd.DataFrame,
     split_data_setup,
