@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "redcap_toolbox"
-requires_python = ">= 3.9"
-version = "2025.7.9"
+requires-python = ">= 3.9"
+version = "2025.07.29"
 authors = [
     { name="Nate Vack", email="njvack@wisc.edu"},
 ]
