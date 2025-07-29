@@ -35,19 +35,22 @@ API_URL = None
 API_TOK = None
 PROJ = None
 
+INDEX_COLUMNS = [
+    "redcap_event_name",
+    "redcap_repeat_instrument",
+    "redcap_repeat_instance",
+]
+
 
 def update_redcap_diff(base_csv, updated_csv, dry_run, allow_new=False):
-    base_df = pd.read_csv(
-        base_csv, dtype=str, na_values=["nan", "NaN"], keep_default_na=False
-    )
+    base_df = pd.read_csv(base_csv, dtype=str, keep_default_na=False)
     index_cols = [base_df.columns[0]]
-    if "redcap_event_name" in base_df.columns:
-        index_cols.append("redcap_event_name")
+    for icol in INDEX_COLUMNS:
+        if icol in base_df.columns:
+            index_cols.append(icol)
     base_df.set_index(index_cols, inplace=True)
     logger.debug(f"Using index: {index_cols}")
-    updated_df = pd.read_csv(
-        updated_csv, dtype=str, na_values=["nan", "NaN"], keep_default_na=False
-    )
+    updated_df = pd.read_csv(updated_csv, dtype=str, keep_default_na=False)
     updated_df.set_index(index_cols, inplace=True)
 
     diffs = redcap_toolbox.minchange.transformation_dicts(
@@ -60,7 +63,7 @@ def update_redcap_diff(base_csv, updated_csv, dry_run, allow_new=False):
 
     if dry_run:
         logger.warning("DRY RUN, NOT UPDATING ANYTHING")
-        logger.warning(f"First change would have been {diffs[0]}")
+        logger.info(f"First change would have been {diffs[0]}")
     else:
         result = PROJ.import_records(diffs)
         logger.info(f"Import record result: {result}")
@@ -69,26 +72,38 @@ def update_redcap_diff(base_csv, updated_csv, dry_run, allow_new=False):
 def main():
     global API_URL, API_TOK, PROJ
 
-    # Initialize API connection
-    try:
-        API_URL = os.environ["REDCAP_API_URL"]
-        API_TOK = os.environ["REDCAP_API_TOKEN"]
-    except KeyError:
-        logger.error("REDCAP_API_URL and REDCAP_API_TOKEN must both be set!")
-        sys.exit(1)
-    PROJ = redcap.Project(API_URL, API_TOK)
-
     args = docopt.docopt(__doc__)
     if args["--verbose"]:
         logger.setLevel(logging.DEBUG)
     logger.debug(args)
+
+    base_csv = args["<base_csv>"]
+    updated_csv = args["<updated_csv>"]
+    dry_run = args["--dry-run"]
+    allow_new = args["--allow-new"]
+
+    # Initialize API connection
+    try:
+        API_URL = os.environ["REDCAP_API_URL"]
+        API_TOK = os.environ["REDCAP_API_TOKEN"]
+        PROJ = redcap.Project(API_URL, API_TOK)
+    except KeyError:
+        if dry_run:
+            logger.warning(
+                "REDCAP environment variables are not set, continuing because dry_run is set"
+            )
+        else:
+            logger.error("REDCAP_API_URL and REDCAP_API_TOKEN must both be set!")
+            return 1
+
     update_redcap_diff(
-        args["<base_csv>"],
-        args["<updated_csv>"],
-        args["--dry-run"],
-        args["--allow-new"],
+        base_csv,
+        updated_csv,
+        dry_run,
+        allow_new,
     )
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
