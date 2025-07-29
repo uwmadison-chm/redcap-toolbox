@@ -46,7 +46,7 @@ def create_df_with_extra_columns():
 def create_df_with_new_rows():
     """Create DataFrame with new rows added."""
     base_df = create_standard_df()
-    
+
     # Create new rows
     new_data = {
         "record_id": [3, 4],
@@ -57,14 +57,14 @@ def create_df_with_new_rows():
         "field3": [50, 60],
     }
     new_rows_df = _create_dataframe(new_data)
-    
+
     return pd.concat([base_df, new_rows_df])
 
 
 def create_df_with_new_rows_all_blank():
     """Create DataFrame with new rows that have all blank columns."""
     base_df = create_standard_df()
-    
+
     new_data = {
         "record_id": [3],
         "redcap_event_name": ["scr_arm_1"],
@@ -74,7 +74,7 @@ def create_df_with_new_rows_all_blank():
         "field3": [""],
     }
     new_rows_df = _create_dataframe(new_data)
-    
+
     return pd.concat([base_df, new_rows_df])
 
 
@@ -82,10 +82,10 @@ def create_df_with_mixed_changes_and_new_rows():
     """Create DataFrame with both existing changes and new rows."""
     # Start with changes
     df = create_df_with_changes()
-    
+
     # Add one more change
     df.loc[(2, "pre_arm_1"), "field1"] = "changed"
-    
+
     # Add new row
     new_data = {
         "record_id": [3],
@@ -96,7 +96,7 @@ def create_df_with_mixed_changes_and_new_rows():
         "field3": [50],
     }
     new_rows_df = _create_dataframe(new_data)
-    
+
     return pd.concat([df, new_rows_df])
 
 

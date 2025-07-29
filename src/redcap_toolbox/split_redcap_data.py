@@ -102,13 +102,13 @@ def condense_df(df, condense_rows=True, condense_cols=True):
         "redcap_repeat_instance",
     }
     rowdrop_cols = list(set(df.columns) - reserved_cols)
-    
+
     df_rows_cleaned = df
     if condense_rows:
-      df_rows_cleaned = df[~(df[rowdrop_cols] == "").all(axis=1)]
+        df_rows_cleaned = df[~(df[rowdrop_cols] == "").all(axis=1)]
     cols_to_keep = df.columns
     if condense_cols:
-      cols_to_keep = cols_to_keep = ~(df_rows_cleaned == "").all(axis=0)
+        cols_to_keep = cols_to_keep = ~(df_rows_cleaned == "").all(axis=0)
 
     return df_rows_cleaned.loc[:, cols_to_keep].copy()
 
