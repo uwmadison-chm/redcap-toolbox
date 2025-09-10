@@ -37,6 +37,7 @@ Options:
 """
 
 import logging
+import sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -49,11 +50,17 @@ logger.setLevel(logging.INFO)
 
 
 def make_event_map(mapping_file):
+    # If mapping file is not specified
     if mapping_file is None:
         return {}
-    map_df = pd.read_csv(mapping_file, index_col="redcap_event", dtype=str)
-    event_map = map_df["filename_event"].to_dict()
-    return event_map
+    try:
+        map_df = pd.read_csv(mapping_file, index_col="redcap_event", dtype=str)
+        event_map = map_df["filename_event"].to_dict()
+        return event_map
+    except FileNotFoundError:
+        # If mapping file is specified but does not exist
+        logger.warning(f"Mapping file {mapping_file} does not exist")
+        return sys.exit(1)
 
 
 def combine_names(event_name, rep_name):
