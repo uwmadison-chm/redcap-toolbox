@@ -20,6 +20,7 @@ Options:
 import logging
 import os
 import sys
+import traceback
 
 import docopt
 import pandas as pd
@@ -65,8 +66,13 @@ def update_redcap_diff(base_csv, updated_csv, dry_run, allow_new=False):
         logger.warning("DRY RUN, NOT UPDATING ANYTHING")
         logger.info(f"First change would have been {diffs[0]}")
     else:
-        result = PROJ.import_records(diffs)
-        logger.info(f"Import record result: {result}")
+        try:
+            result = PROJ.import_records(diffs)
+            logger.info(f"Import record result: {result}")
+        except Exception as e:
+            logger.error(f"Error importing records: {e}")
+            logger.error(traceback.format_exc())
+            return sys.exit(1)
 
 
 def main():
