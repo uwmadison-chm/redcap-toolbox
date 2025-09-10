@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "redcap_toolbox"
 requires-python = ">= 3.9"
-version = "2025.07.29"
+version = "2025.09.10"
 authors = [
     { name="Nate Vack", email="njvack@wisc.edu"},
 ]
@@ -14,7 +14,6 @@ maintainers = [
     { name="Nicholas Vanhaute", email="nvanhaute@wisc.edu" },
     { name="Stuti Shrivastava", email="sshrivastav6@wisc.edu" }
 ]
-
 description = "A collection of tools to interact with the REDCap API"
 readme = "README.md"
 classifiers = [
@@ -28,7 +27,7 @@ classifiers = [
 dependencies = [
     "docopt-ng>=0.9.0",
     "pandas>=2.2.3",
-    "pycap>=2.6.0",
+    "pycap>=2.7.0",
 ]
 
 
