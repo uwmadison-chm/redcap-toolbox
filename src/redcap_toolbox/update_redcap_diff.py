@@ -12,6 +12,7 @@ Usage: update_redcap_diff.py [options] <base_csv> <updated_csv>
 
 Options:
     --allow-new   Allow adding new rows to REDCap.
+    --background  Use background import mode.
     --dry-run     Don't actually make changes.
     -h --help     Show this screen.
     -v --verbose  Show debug logging.
@@ -42,7 +43,9 @@ INDEX_COLUMNS = [
 ]
 
 
-def update_redcap_diff(base_csv, updated_csv, dry_run, allow_new=False):
+def update_redcap_diff(
+    base_csv, updated_csv, dry_run, allow_new=False, background_import=False
+):
     base_df = pd.read_csv(base_csv, dtype=str, keep_default_na=False)
     index_cols = [base_df.columns[0]]
     for icol in INDEX_COLUMNS:
@@ -65,7 +68,7 @@ def update_redcap_diff(base_csv, updated_csv, dry_run, allow_new=False):
         logger.warning("DRY RUN, NOT UPDATING ANYTHING")
         logger.info(f"First change would have been {diffs[0]}")
     else:
-        result = PROJ.import_records(diffs)
+        result = PROJ.import_records(diffs, background_import=background_import or None)
         logger.info(f"Import record result: {result}")
 
 
@@ -81,6 +84,7 @@ def main():
     updated_csv = args["<updated_csv>"]
     dry_run = args["--dry-run"]
     allow_new = args["--allow-new"]
+    background_import = args["--background"]
 
     # Initialize API connection
     try:
@@ -101,6 +105,7 @@ def main():
         updated_csv,
         dry_run,
         allow_new,
+        background_import,
     )
     return 0
 
