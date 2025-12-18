@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "redcap_toolbox"
-requires-python = ">= 3.9"
+requires-python = ">= 3.10"
 version = "2025.07.29"
 authors = [
     { name="Nate Vack", email="njvack@wisc.edu"},
@@ -29,7 +29,7 @@ classifiers = [
 dependencies = [
     "docopt-ng>=0.9.0",
     "pandas>=2.2.3",
-    "pycap>=2.6.0",
+    "pycap",
 ]
 
 
@@ -48,4 +48,11 @@ dev = [
     "pluggy>=1.6.0",
     "pytest>=8.4.1",
     "ruff>=0.12.2",
+    "ty>=0.0.2",
 ]
+
+[tool.uv.sources]
+pycap = { url = "https://github.com/uwmadison-chm/PyCap/archive/refs/tags/2.7.1-chm.zip" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
