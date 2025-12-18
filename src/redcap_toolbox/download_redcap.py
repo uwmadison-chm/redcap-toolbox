@@ -35,14 +35,16 @@ API_TOK = os.environ["REDCAP_API_TOKEN"]
 PROJ = redcap.Project(API_URL, API_TOK)
 
 
-def file_to_list(filename):
+def file_to_list(filename: str) -> list[str]:
     out = []
     with open(filename) as f:
         out = [line.strip() for line in f.readlines()]
     return out
 
 
-def download_redcap(out_file, form_list_file, export_survey_fields):
+def download_redcap(
+    out_file: Path, form_list_file: str | None, export_survey_fields: bool
+) -> None:
     forms = None
     if form_list_file:
         forms = file_to_list(form_list_file)
@@ -54,8 +56,8 @@ def download_redcap(out_file, form_list_file, export_survey_fields):
         f.write(data)
 
 
-def main():
-    args = docopt(__doc__)
+def main() -> None:
+    args = docopt(__doc__ or "")
     if args["--debug"]:
         logger.setLevel(logging.DEBUG)
     logger.debug(args)

@@ -6,9 +6,14 @@ one dataframe to another (identically-shaped) dataframe.
 """
 
 from collections.abc import Iterable
+from typing import Any
+
+import pandas as pd
 
 
-def transformation_dicts(source_df, target_df, allow_new=False):
+def transformation_dicts(
+    source_df: pd.DataFrame, target_df: pd.DataFrame, allow_new: bool = False
+) -> list[dict[str, Any]]:
     """
     Calculates the minimal set of changes to transform source_df into target_df.
     source_df and target_df must be identically-shaped -- in particular,
@@ -49,14 +54,16 @@ def transformation_dicts(source_df, target_df, allow_new=False):
         ]
 
 
-def _index_formats_match(source_df, target_df):
+def _index_formats_match(source_df: pd.DataFrame, target_df: pd.DataFrame) -> bool:
     """Check if index formats match (same names and number of levels)."""
     return source_df.index.names == target_df.index.names and len(
         source_df.index.names
     ) == len(target_df.index.names)
 
 
-def _handle_with_new_rows(source_df, target_df):
+def _handle_with_new_rows(
+    source_df: pd.DataFrame, target_df: pd.DataFrame
+) -> list[dict[str, Any]]:
     """Handle transformation when new rows are allowed."""
     results = []
 
@@ -86,7 +93,9 @@ def _handle_with_new_rows(source_df, target_df):
     return results
 
 
-def _create_new_row_dict(idx, row, target_df):
+def _create_new_row_dict(
+    idx: Any, row: pd.Series, target_df: pd.DataFrame
+) -> dict[str, Any]:
     """Create dictionary for new row, filtering out blank columns."""
     if not isinstance(idx, Iterable) or isinstance(idx, str):
         idx = (idx,)
@@ -104,7 +113,9 @@ def _create_new_row_dict(idx, row, target_df):
     return result
 
 
-def diff_dict(idx, vals, target_df):
+def diff_dict(
+    idx: Any, vals: pd.Series, target_df: pd.DataFrame
+) -> dict[str, Any] | None:
     if not isinstance(idx, Iterable) or isinstance(idx, str):
         idx = (idx,)
     true_indexes = vals[vals].index

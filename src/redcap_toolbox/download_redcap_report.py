@@ -45,7 +45,7 @@ API_TOK = os.environ["REDCAP_API_TOKEN"]
 PROJ = redcap.Project(API_URL, API_TOK)
 
 
-def file_to_list(filename):
+def file_to_list(filename: str) -> list[str]:
     out = []
     with open(filename) as f:
         out = [line.strip() for line in f.readlines()]
@@ -71,8 +71,8 @@ def download_redcap_report(
                 logger.warning(traceback.format_exc())
 
 
-def main():
-    args = docopt(__doc__)
+def main() -> None:
+    args = docopt(__doc__ or "")
     if args["--debug"]:
         logger.setLevel(logging.DEBUG)
     logger.debug(args)

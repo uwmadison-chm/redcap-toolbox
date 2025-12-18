@@ -21,6 +21,7 @@ Options:
 import logging
 import os
 import sys
+from typing import Any
 
 import docopt
 import pandas as pd
@@ -32,9 +33,9 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # Initialize these as None - they'll be set in main()
-API_URL = None
-API_TOK = None
-PROJ = None
+API_URL: str | None = None
+API_TOK: str | None = None
+PROJ: Any = None
 
 INDEX_COLUMNS = [
     "redcap_event_name",
@@ -44,8 +45,12 @@ INDEX_COLUMNS = [
 
 
 def update_redcap_diff(
-    base_csv, updated_csv, dry_run, allow_new=False, background_import=False
-):
+    base_csv: str,
+    updated_csv: str,
+    dry_run: bool,
+    allow_new: bool = False,
+    background_import: bool = False,
+) -> None:
     base_df = pd.read_csv(base_csv, dtype=str, keep_default_na=False)
     index_cols = [base_df.columns[0]]
     for icol in INDEX_COLUMNS:
@@ -72,10 +77,10 @@ def update_redcap_diff(
         logger.info(f"Import record result: {result}")
 
 
-def main():
+def main() -> int:
     global API_URL, API_TOK, PROJ
 
-    args = docopt.docopt(__doc__)
+    args = docopt.docopt(__doc__ or "")
     if args["--verbose"]:
         logger.setLevel(logging.DEBUG)
     logger.debug(args)

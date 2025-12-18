@@ -39,6 +39,7 @@ Options:
 import logging
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 import docopt
 import pandas as pd
@@ -48,7 +49,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def make_event_map(mapping_file):
+def make_event_map(mapping_file: str | None) -> dict[str, str]:
     if mapping_file is None:
         return {}
     map_df = pd.read_csv(mapping_file, index_col="redcap_event", dtype=str)
@@ -56,14 +57,16 @@ def make_event_map(mapping_file):
     return event_map
 
 
-def combine_names(event_name, rep_name):
+def combine_names(event_name: str, rep_name: str) -> str:
     parts = [name for name in [event_name, rep_name] if name != ""]
     joined = "__".join(parts)
     logger.debug(f"Made name {joined} from {event_name} and {rep_name}")
     return joined
 
 
-def split_data(data, event_map):
+def split_data(
+    data: pd.DataFrame, event_map: dict[str, str]
+) -> dict[str, pd.DataFrame]:
     """
     Returns a dict of nonprefixed_filename: data pairs
     """
@@ -71,10 +74,10 @@ def split_data(data, event_map):
     index_col = data.columns[0]
     event_groups = data.groupby(by="redcap_event_name")
     for rc_event, event_data in event_groups:
-        out_event_name = event_map.get(rc_event, rc_event)
+        out_event_name = event_map.get(str(rc_event), str(rc_event))
         rep_groups = event_data.groupby(by="redcap_repeat_instrument")
         for rep_group, rep_data in rep_groups:
-            out_name = combine_names(out_event_name, rep_group)
+            out_name = combine_names(out_event_name, str(rep_group))
             data_lists[out_name].append(rep_data)
     # Now, we need to concat the dataframes and sort them by the index column
     dataframes = {
@@ -86,7 +89,9 @@ def split_data(data, event_map):
     return dataframes
 
 
-def condense_df(df, condense_rows=True, condense_cols=True):
+def condense_df(
+    df: pd.DataFrame, condense_rows: bool = True, condense_cols: bool = True
+) -> pd.DataFrame:
     """
     Drop any rows and columns with only blank values
     This is not a super great way to do this, as it means the shape of the data we write
@@ -114,8 +119,12 @@ def condense_df(df, condense_rows=True, condense_cols=True):
 
 
 def split_redcap_data(
-    input_file, output_directory, prefix="redcap", mapping_file=None, condense=True
-):
+    input_file: str | Path,
+    output_directory: str | Path,
+    prefix: str = "redcap",
+    mapping_file: str | None = None,
+    condense: bool = True,
+) -> None:
     event_map = make_event_map(mapping_file)
     logger.debug(f"Event map: {event_map}")
     data = pd.read_csv(input_file, index_col=None, dtype=str, na_filter=False)
@@ -140,8 +149,8 @@ def split_redcap_data(
         df.to_csv(out_path, index=False)
 
 
-def main():
-    args = docopt.docopt(__doc__)
+def main() -> None:
+    args = docopt.docopt(__doc__ or "")
     if args["--debug"]:
         logger.setLevel(logging.DEBUG)
     logger.debug(args)
