@@ -3,7 +3,7 @@
 import pytest
 import tempfile
 import os
-import pandas as pd
+import polars as pl
 from unittest.mock import patch, MagicMock
 
 from src.redcap_toolbox.update_redcap_diff import update_redcap_diff, main
@@ -32,15 +32,15 @@ def temp_csv_files():
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".csv", delete=False
     ) as base_file:
-        base_df = pd.DataFrame(base_data)
-        base_df.to_csv(base_file.name, index=False)
+        base_df = pl.DataFrame(base_data)
+        base_df.write_csv(base_file.name)
         base_path = base_file.name
 
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".csv", delete=False
     ) as updated_file:
-        updated_df = pd.DataFrame(updated_data)
-        updated_df.to_csv(updated_file.name, index=False)
+        updated_df = pl.DataFrame(updated_data)
+        updated_df.write_csv(updated_file.name)
         updated_path = updated_file.name
 
     yield base_path, updated_path
@@ -84,7 +84,7 @@ def test_update_redcap_diff_without_allow_new_flag(mock_proj, temp_csv_files):
 
     # This should raise an error when allow_new=False (default)
     with pytest.raises(
-        ValueError, match="Source and target dfs have different indexes"
+        ValueError, match="Source and target dfs have different key values"
     ):
         update_redcap_diff(base_path, updated_path, dry_run=False, allow_new=False)
 

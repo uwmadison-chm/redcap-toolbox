@@ -28,7 +28,7 @@ classifiers = [
 ]
 dependencies = [
     "docopt-ng>=0.9.0",
-    "pandas>=2.2.3",
+    "polars>=1.36.1",
     "pycap",
 ]
 

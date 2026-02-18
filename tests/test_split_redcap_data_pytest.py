@@ -3,7 +3,7 @@
 from pathlib import Path
 from unittest.mock import patch
 
-import pandas as pd
+import polars as pl
 import pytest
 
 from src.redcap_toolbox.split_redcap_data import (
@@ -19,9 +19,9 @@ from tests.dataframe_factory import create_standard_df
 @pytest.fixture
 def event_df():
     """
-    Returns a pre-defined event map pandas dataframe. This is used across all tests.
+    Returns a pre-defined event map polars dataframe. This is used across all tests.
     """
-    return pd.DataFrame(
+    return pl.DataFrame(
         {
             "redcap_event": ["scr_arm_1", "pre_arm_1", "post_arm_1"],
             "filename_event": ["scr", "pre", "post"],
@@ -34,22 +34,29 @@ def instance_data():
     """
     Creates test data with updated redcap_repeat_instrument column.
     """
-    data = create_standard_df().reset_index()
-    data.update({"redcap_repeat_instrument": ["", "", "meds"]})
+    data = create_standard_df()
+    # Set meds for the row with (record_id=2, redcap_event_name='pre_arm_1')
+    data = data.with_columns(
+        pl.when(
+            (pl.col("record_id") == 2) & (pl.col("redcap_event_name") == "pre_arm_1")
+        )
+        .then(pl.lit("meds"))
+        .otherwise(pl.lit(""))
+        .alias("redcap_repeat_instrument")
+    )
     return data
 
 
 @pytest.fixture
-@patch("src.redcap_toolbox.split_redcap_data.pd.read_csv")
+@patch("src.redcap_toolbox.split_redcap_data.pl.read_csv")
 def split_data_setup(
     mock_read_csv,
-    event_df: pd.DataFrame,
-    instance_data: pd.DataFrame,
+    event_df: pl.DataFrame,
+    instance_data: pl.DataFrame,
 ):
     # Mock dataset and event map
-    data = instance_data.set_index(["record_id", "redcap_event_name"])
+    data = instance_data.sort(["record_id", "redcap_event_name"])
 
-    event_df.set_index("redcap_event", inplace=True)
     mock_read_csv.return_value = event_df
     event_map = make_event_map("mock_mapping_file.csv")
 
@@ -61,18 +68,25 @@ def condense_df_setup():
     """
     Creates test data for condense_df tests.
     """
-    data = create_standard_df().reset_index()
-    data.update({"redcap_event_name": ["scr", "scr", "pre"], "field2": ["", "", ""]})
-    data = data.set_index(["record_id", "redcap_event_name"])
+    data = create_standard_df()
+    # Update specific rows - set field2 to "" for all rows, update event names
+    data = data.with_columns(
+        pl.when(pl.col("record_id") == 1)
+        .then(pl.lit("scr"))
+        .when((pl.col("record_id") == 2) & (pl.col("redcap_event_name") == "scr_arm_1"))
+        .then(pl.lit("scr"))
+        .otherwise(pl.lit("pre"))
+        .alias("redcap_event_name"),
+        pl.lit("").alias("field2"),
+    )
     return data
 
 
-@patch("src.redcap_toolbox.split_redcap_data.pd.read_csv")
-def test_make_event_map_with_file(mock_read_csv, event_df: pd.DataFrame):
+@patch("src.redcap_toolbox.split_redcap_data.pl.read_csv")
+def test_make_event_map_with_file(mock_read_csv, event_df: pl.DataFrame):
     """
     Tests make_event_map with pre-defined event dataframe.
     """
-    event_df.set_index("redcap_event", inplace=True)
     mock_read_csv.return_value = event_df
 
     result = make_event_map("mock_mapping_file.csv")
@@ -80,7 +94,8 @@ def test_make_event_map_with_file(mock_read_csv, event_df: pd.DataFrame):
 
     assert result == expected
     mock_read_csv.assert_called_once_with(
-        "mock_mapping_file.csv", index_col="redcap_event", dtype=str
+        "mock_mapping_file.csv",
+        dtypes={"redcap_event": pl.String, "filename_event": pl.String},
     )
 
 
@@ -123,8 +138,8 @@ def test_split_data(split_data_setup):
     # Verify resulting DataFrames
     scr_df = result["scr"]
     pre_meds_df = result["pre__meds"]
-    assert scr_df.shape == (2, 4)  # 2 rows, 4 columns
-    assert pre_meds_df.shape == (1, 4)  # 1 row, 4 columns
+    assert scr_df.shape == (2, 6)  # 2 rows, 6 columns (all columns preserved)
+    assert pre_meds_df.shape == (1, 6)  # 1 row, 6 columns (all columns preserved)
 
 
 def test_condense_df(condense_df_setup):
@@ -135,20 +150,22 @@ def test_condense_df(condense_df_setup):
     data = condense_df_setup
     result = condense_df(data)
 
-    assert result.shape == (3, 2)  # 3 rows and 3 columns
+    # Should have: record_id, redcap_event_name, field1, field3
+    # field2 and redcap_repeat_instrument are dropped because they're all empty
+    assert result.shape == (3, 4)  # 3 rows and 4 columns
     assert "field2" not in result.columns
     assert "field1" in result.columns
 
 
-@patch("src.redcap_toolbox.split_redcap_data.pd.read_csv")
-@patch("src.redcap_toolbox.split_redcap_data.pd.DataFrame.to_csv")
+@patch("src.redcap_toolbox.split_redcap_data.pl.read_csv")
+@patch("src.redcap_toolbox.split_redcap_data.pl.DataFrame.write_csv")
 @patch("src.redcap_toolbox.split_redcap_data.make_event_map")
 def test_split_redcap_data(
     mock_make_event_map,
-    mock_to_csv,
+    mock_write_csv,
     mock_read_csv,
-    event_df: pd.DataFrame,
-    instance_data: pd.DataFrame,
+    event_df: pl.DataFrame,
+    instance_data: pl.DataFrame,
     split_data_setup,
 ):
     """
@@ -156,7 +173,6 @@ def test_split_redcap_data(
     and generating the correct output files.
     """
     data, event_map = split_data_setup
-    data.reset_index(inplace=True)
     mock_read_csv.return_value = data
     mock_make_event_map.return_value = event_map
     # Run the function
@@ -169,10 +185,8 @@ def test_split_redcap_data(
     )
 
     # Ensure files were saved correctly
-    mock_to_csv.assert_any_call(
-        Path("mock_output_dir") / "test_prefix__scr.csv", index=False
+    mock_write_csv.assert_any_call(Path("mock_output_dir") / "test_prefix__scr.csv")
+    mock_write_csv.assert_any_call(
+        Path("mock_output_dir") / "test_prefix__pre__meds.csv"
     )
-    mock_to_csv.assert_any_call(
-        Path("mock_output_dir") / "test_prefix__pre__meds.csv", index=False
-    )
-    assert mock_to_csv.call_count == 2
+    assert mock_write_csv.call_count == 2

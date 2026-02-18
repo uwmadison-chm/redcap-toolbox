@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import Any
 
 import docopt
-import pandas as pd
+import polars as pl
 
 logging.basicConfig(format="%(message)s")
 logger = logging.getLogger(__name__)
@@ -52,37 +52,44 @@ logger.setLevel(logging.INFO)
 def make_event_map(mapping_file: str | None) -> dict[str, str]:
     if mapping_file is None:
         return {}
-    map_df = pd.read_csv(mapping_file, index_col="redcap_event", dtype=str)
-    event_map = map_df["filename_event"].to_dict()
+    map_df = pl.read_csv(
+        mapping_file, dtypes={"redcap_event": pl.String, "filename_event": pl.String}
+    )
+    event_map = dict(zip(map_df["redcap_event"], map_df["filename_event"]))
     return event_map
 
 
 def combine_names(event_name: str, rep_name: str) -> str:
-    parts = [name for name in [event_name, rep_name] if name != ""]
+    parts = [name for name in [event_name, rep_name] if str(name) != ""]
     joined = "__".join(parts)
     logger.debug(f"Made name {joined} from {event_name} and {rep_name}")
     return joined
 
 
 def split_data(
-    data: pd.DataFrame, event_map: dict[str, str]
-) -> dict[str, pd.DataFrame]:
+    data: pl.DataFrame, event_map: dict[str, str]
+) -> dict[str, pl.DataFrame]:
     """
     Returns a dict of nonprefixed_filename: data pairs
     """
     data_lists = defaultdict(list)
     index_col = data.columns[0]
-    event_groups = data.groupby(by="redcap_event_name")
-    for rc_event, event_data in event_groups:
-        out_event_name = event_map.get(str(rc_event), str(rc_event))
-        rep_groups = event_data.groupby(by="redcap_repeat_instrument")
-        for rep_group, rep_data in rep_groups:
-            out_name = combine_names(out_event_name, str(rep_group))
+    event_groups = data.partition_by("redcap_event_name", as_dict=True)
+    for rc_event, event_data in event_groups.items():
+        # partition_by returns tuples as keys, extract the first element
+        rc_event_str = rc_event[0] if isinstance(rc_event, tuple) else rc_event
+        out_event_name = event_map.get(str(rc_event_str), str(rc_event_str))
+        rep_groups = event_data.partition_by("redcap_repeat_instrument", as_dict=True)
+        for rep_group, rep_data in rep_groups.items():
+            # partition_by returns tuples as keys, extract the first element
+            rep_group_str = rep_group[0] if isinstance(rep_group, tuple) else rep_group
+            # Convert None to empty string to avoid "None" in filenames
+            rep_group_str = "" if rep_group_str is None else str(rep_group_str)
+            out_name = combine_names(out_event_name, rep_group_str)
             data_lists[out_name].append(rep_data)
     # Now, we need to concat the dataframes and sort them by the index column
     dataframes = {
-        name: pd.concat(df_list).sort_values(by=index_col)
-        for name, df_list in data_lists.items()
+        name: pl.concat(df_list).sort(index_col) for name, df_list in data_lists.items()
     }
     for name, df in dataframes.items():
         logger.debug(f"Name: {name}, Shape: {df.shape})")
@@ -90,8 +97,8 @@ def split_data(
 
 
 def condense_df(
-    df: pd.DataFrame, condense_rows: bool = True, condense_cols: bool = True
-) -> pd.DataFrame:
+    df: pl.DataFrame, condense_rows: bool = True, condense_cols: bool = True
+) -> pl.DataFrame:
     """
     Drop any rows and columns with only blank values
     This is not a super great way to do this, as it means the shape of the data we write
@@ -110,12 +117,25 @@ def condense_df(
 
     df_rows_cleaned = df
     if condense_rows:
-        df_rows_cleaned = df[~(df[rowdrop_cols] == "").all(axis=1)]
+        # Keep rows where not all rowdrop_cols are empty
+        row_mask = ~pl.all_horizontal([pl.col(c) == "" for c in rowdrop_cols])
+        df_rows_cleaned = df.filter(row_mask)
+
     cols_to_keep = df.columns
     if condense_cols:
-        cols_to_keep = cols_to_keep = ~(df_rows_cleaned == "").all(axis=0)
+        # Find columns that are not all empty
+        cols_to_keep = []
+        for c in df_rows_cleaned.columns:
+            # For string columns, check if all values are empty strings
+            # For non-string columns (like record_id), always keep them
+            if df_rows_cleaned[c].dtype == pl.String:
+                if not df_rows_cleaned[c].eq("").all():
+                    cols_to_keep.append(c)
+            else:
+                # Keep non-string columns
+                cols_to_keep.append(c)
 
-    return df_rows_cleaned.loc[:, cols_to_keep].copy()
+    return df_rows_cleaned.select(cols_to_keep)
 
 
 def split_redcap_data(
@@ -127,15 +147,20 @@ def split_redcap_data(
 ) -> None:
     event_map = make_event_map(mapping_file)
     logger.debug(f"Event map: {event_map}")
-    data = pd.read_csv(input_file, index_col=None, dtype=str, na_filter=False)
+    # Read CSV with all columns as strings
+    data = pl.read_csv(input_file, infer_schema_length=0)
+    # Convert all columns to string type
+    data = data.cast({col: pl.String for col in data.columns})
     # Make sure the event and repeating columns are present, so we can process
     # the data the same in all cases.
     if "redcap_event_name" not in data.columns:
         logger.debug("Single event file, adding event column")
-        data["redcap_event_name"] = ""
+        data = data.with_columns(pl.lit("").alias("redcap_event_name"))
     if "redcap_repeat_instrument" not in data.columns:
-        data["redcap_repeat_instrument"] = ""
-        data["redcap_repeat_instance"] = ""
+        data = data.with_columns(
+            pl.lit("").alias("redcap_repeat_instrument"),
+            pl.lit("").alias("redcap_repeat_instance"),
+        )
         logger.debug("Non-repeating file, added repeat columns")
     named_dataframes = split_data(data, event_map)
     logger.debug(named_dataframes)
@@ -146,7 +171,7 @@ def split_redcap_data(
         filename = f"{file_base}.csv"
         out_path = Path(output_directory) / filename
         logger.info(f"Saving dataframe with shape {df.shape} to {out_path}")
-        df.to_csv(out_path, index=False)
+        df.write_csv(out_path)
 
 
 def main() -> None:

@@ -24,7 +24,9 @@ def test_transformation_dicts_no_changes():
     source_df = create_standard_df()
     copy_df = create_standard_df()
 
-    result = transformation_dicts(source_df, copy_df)
+    result = transformation_dicts(
+        source_df, copy_df, key_cols=["record_id", "redcap_event_name"]
+    )
     assert result == []
 
 
@@ -35,23 +37,28 @@ def test_transformation_dicts_with_changes():
     source_df = create_standard_df()
     diff_df = create_df_with_changes()
 
-    result = transformation_dicts(source_df, diff_df)
+    result = transformation_dicts(
+        source_df, diff_df, key_cols=["record_id", "redcap_event_name"]
+    )
     expected = [
-        {"record_id": 2, "redcap_event_name": "scr_arm_1", "field3": 40},
         {"record_id": 2, "redcap_event_name": "pre_arm_1", "field1": "g"},
+        {"record_id": 2, "redcap_event_name": "scr_arm_1", "field3": "40"},
     ]
     assert result == expected
 
 
 def test_transformation_dicts_different_indexes():
     """
-    Test when source and target DataFrames have different indexes.
+    Test when source and target DataFrames have different key columns.
     """
     source_df = create_standard_df()
     wrong_index_df = create_df_with_wrong_index()
 
-    with pytest.raises(ValueError, match="Index formats do not match"):
-        transformation_dicts(source_df, wrong_index_df)
+    # Test with key_cols that exist in source but not in target (redcap_event_name doesn't exist in wrong_index_df)
+    with pytest.raises(ValueError, match="Key columns do not match"):
+        transformation_dicts(
+            source_df, wrong_index_df, key_cols=["record_id", "redcap_event_name"]
+        )
 
 
 def test_transformation_dicts_different_columns():
@@ -64,7 +71,9 @@ def test_transformation_dicts_different_columns():
     with pytest.raises(
         ValueError, match="Source and target dfs have different columns"
     ):
-        transformation_dicts(source_df, extra_columns_df)
+        transformation_dicts(
+            source_df, extra_columns_df, key_cols=["record_id", "redcap_event_name"]
+        )
 
 
 # Tests for new row functionality with allow_new=True
@@ -75,7 +84,12 @@ def test_transformation_dicts_new_rows_allow_new_true():
     source_df = create_standard_df()
     target_df = create_df_with_new_rows()
 
-    result = transformation_dicts(source_df, target_df, allow_new=True)
+    result = transformation_dicts(
+        source_df,
+        target_df,
+        key_cols=["record_id", "redcap_event_name"],
+        allow_new=True,
+    )
 
     # Should include new rows with only non-blank columns
     expected = [
@@ -83,13 +97,13 @@ def test_transformation_dicts_new_rows_allow_new_true():
             "record_id": 3,
             "redcap_event_name": "scr_arm_1",
             "field1": "new_val",
-            "field3": 50,
+            "field3": "50",
         },
         {
             "record_id": 4,
             "redcap_event_name": "pre_arm_1",
             "field2": "new_val2",
-            "field3": 60,
+            "field3": "60",
         },
     ]
     assert result == expected
@@ -103,21 +117,31 @@ def test_transformation_dicts_new_rows_allow_new_false():
     target_df = create_df_with_new_rows()
 
     with pytest.raises(
-        ValueError, match="Source and target dfs have different indexes"
+        ValueError, match="Source and target dfs have different key values"
     ):
-        transformation_dicts(source_df, target_df, allow_new=False)
+        transformation_dicts(
+            source_df,
+            target_df,
+            key_cols=["record_id", "redcap_event_name"],
+            allow_new=False,
+        )
 
 
 def test_transformation_dicts_new_rows_all_blank_columns():
     """
-    Test that new rows with all blank columns still include the index.
+    Test that new rows with all blank columns still include the key columns.
     """
     source_df = create_standard_df()
     target_df = create_df_with_new_rows_all_blank()
 
-    result = transformation_dicts(source_df, target_df, allow_new=True)
+    result = transformation_dicts(
+        source_df,
+        target_df,
+        key_cols=["record_id", "redcap_event_name"],
+        allow_new=True,
+    )
 
-    # Should include the index even with all blank columns
+    # Should include the key columns even with all blank value columns
     expected = [
         {"record_id": 3, "redcap_event_name": "scr_arm_1"},
     ]
@@ -131,17 +155,22 @@ def test_transformation_dicts_mixed_existing_and_new_rows():
     source_df = create_standard_df()
     target_df = create_df_with_mixed_changes_and_new_rows()
 
-    result = transformation_dicts(source_df, target_df, allow_new=True)
+    result = transformation_dicts(
+        source_df,
+        target_df,
+        key_cols=["record_id", "redcap_event_name"],
+        allow_new=True,
+    )
 
     # Should include both existing changes and new rows
     expected = [
-        {"record_id": 2, "redcap_event_name": "scr_arm_1", "field3": 40},
         {"record_id": 2, "redcap_event_name": "pre_arm_1", "field1": "changed"},
+        {"record_id": 2, "redcap_event_name": "scr_arm_1", "field3": "40"},
         {
             "record_id": 3,
             "redcap_event_name": "scr_arm_1",
             "field1": "new_val",
-            "field3": 50,
+            "field3": "50",
         },
     ]
     assert result == expected
@@ -149,43 +178,58 @@ def test_transformation_dicts_mixed_existing_and_new_rows():
 
 def test_transformation_dicts_index_format_mismatch_different_levels():
     """
-    Test rejection when index structures have different number of levels.
+    Test rejection when key column lists have different lengths.
     """
     source_df = create_standard_df()
     target_df = create_df_with_different_index_levels()
 
-    with pytest.raises(ValueError, match="Index formats do not match"):
-        transformation_dicts(source_df, target_df, allow_new=True)
+    with pytest.raises(ValueError, match="Key columns do not match"):
+        transformation_dicts(
+            source_df,
+            target_df,
+            key_cols=["record_id", "redcap_event_name"],
+            allow_new=True,
+        )
 
 
 def test_transformation_dicts_index_format_mismatch_different_names():
     """
-    Test rejection when index names don't match.
+    Test rejection when key column names don't match.
     """
     source_df = create_standard_df()
     target_df = create_df_with_different_index_names()
 
-    with pytest.raises(ValueError, match="Index formats do not match"):
-        transformation_dicts(source_df, target_df, allow_new=True)
+    with pytest.raises(ValueError, match="Key columns do not match"):
+        transformation_dicts(
+            source_df,
+            target_df,
+            key_cols=["record_id", "redcap_event_name"],
+            allow_new=True,
+        )
 
 
 def test_transformation_dicts_index_format_match_different_values():
     """
-    Test acceptance when index formats match but have different values (new rows).
+    Test acceptance when key columns match but have different values (new rows).
     """
     source_df = create_standard_df()
     target_df = create_df_with_matching_index_format_new_values()
 
-    result = transformation_dicts(source_df, target_df, allow_new=True)
+    result = transformation_dicts(
+        source_df,
+        target_df,
+        key_cols=["record_id", "redcap_event_name"],
+        allow_new=True,
+    )
 
-    # Should accept since index formats match
+    # Should accept since key columns match
     expected = [
         {
             "record_id": 3,
             "redcap_event_name": "pre_arm_1",
             "field1": "new",
             "field2": "new2",
-            "field3": 40,
+            "field3": "40",
         },
     ]
     assert result == expected

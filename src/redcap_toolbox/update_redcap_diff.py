@@ -24,7 +24,7 @@ import sys
 from typing import Any
 
 import docopt
-import pandas as pd
+import polars as pl
 import redcap
 import redcap_toolbox.minchange
 
@@ -51,18 +51,22 @@ def update_redcap_diff(
     allow_new: bool = False,
     background_import: bool = False,
 ) -> None:
-    base_df = pd.read_csv(base_csv, dtype=str, keep_default_na=False)
-    index_cols = [base_df.columns[0]]
+    # Read CSV with all columns as strings
+    base_df = pl.read_csv(base_csv, infer_schema_length=0)
+    base_df = base_df.cast({col: pl.String for col in base_df.columns})
+    key_cols = [base_df.columns[0]]
     for icol in INDEX_COLUMNS:
         if icol in base_df.columns:
-            index_cols.append(icol)
-    base_df.set_index(index_cols, inplace=True)
-    logger.debug(f"Using index: {index_cols}")
-    updated_df = pd.read_csv(updated_csv, dtype=str, keep_default_na=False)
-    updated_df.set_index(index_cols, inplace=True)
+            key_cols.append(icol)
+    base_df = base_df.sort(key_cols)
+    logger.debug(f"Using key columns: {key_cols}")
+    # Read CSV with all columns as strings
+    updated_df = pl.read_csv(updated_csv, infer_schema_length=0)
+    updated_df = updated_df.cast({col: pl.String for col in updated_df.columns})
+    updated_df = updated_df.sort(key_cols)
 
     diffs = redcap_toolbox.minchange.transformation_dicts(
-        base_df, updated_df, allow_new=allow_new
+        base_df, updated_df, key_cols=key_cols, allow_new=allow_new
     )
     if len(diffs) == 0:
         logger.info("No changes to make")
