@@ -145,6 +145,21 @@ def create_df_with_different_index_names():
     return df.sort(["record_id", "different_event"])
 
 
+def create_df_with_duplicate_keys():
+    """Create DataFrame with a duplicate key combination (record_id=1, scr_arm_1 twice)."""
+    data = {
+        "record_id": ["1", "1", "2"],
+        "redcap_event_name": ["scr_arm_1", "scr_arm_1", "scr_arm_1"],
+        "redcap_repeat_instrument": ["", "", ""],
+        "field1": ["a", "b", "c"],
+        "field2": ["d", "e", "f"],
+        "field3": ["10", "20", "30"],
+    }
+    df = pl.DataFrame(data)
+    df = df.with_columns(pl.col("record_id").cast(pl.Int64))
+    return df
+
+
 def create_df_with_matching_index_format_new_values():
     """Create DataFrame with matching index format but new values."""
     data = {

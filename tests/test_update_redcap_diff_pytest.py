@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import importlib
 import pytest
 import tempfile
 import os
@@ -260,6 +261,34 @@ def many_diffs_csv_files():
     yield base_path, updated_path
     os.unlink(base_path)
     os.unlink(updated_path)
+
+
+@patch("src.redcap_toolbox.update_redcap_diff.PROJ")
+def test_update_redcap_diff_missing_key_col_in_updated(mock_proj, tmp_path):
+    """A clear ValueError is raised when updated CSV is missing a key column."""
+    base_df = pl.DataFrame(
+        {
+            "record_id": ["1", "2"],
+            "redcap_event_name": ["scr_arm_1", "pre_arm_1"],
+            "field1": ["a", "b"],
+        }
+    )
+    # updated_df omits redcap_event_name, which would be a key column
+    updated_df = pl.DataFrame(
+        {
+            "record_id": ["1", "2"],
+            "field1": ["x", "y"],
+        }
+    )
+    base_path = str(tmp_path / "base.csv")
+    updated_path = str(tmp_path / "updated.csv")
+    base_df.write_csv(base_path)
+    updated_df.write_csv(updated_path)
+
+    with pytest.raises(ValueError, match="missing key columns"):
+        update_redcap_diff(base_path, updated_path, dry_run=False)
+
+    mock_proj.import_records.assert_not_called()
 
 
 @patch("src.redcap_toolbox.update_redcap_diff.PROJ")

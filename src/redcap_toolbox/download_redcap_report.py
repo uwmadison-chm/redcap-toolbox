@@ -29,8 +29,10 @@ Options:
 
 import logging
 import os
+import sys
 import traceback
 from pathlib import Path
+from typing import Any
 
 import redcap
 from docopt import docopt
@@ -40,9 +42,9 @@ logging.basicConfig(format="%(message)s")
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-API_URL = os.environ["REDCAP_API_URL"]
-API_TOK = os.environ["REDCAP_API_TOKEN"]
-PROJ = redcap.Project(API_URL, API_TOK)
+API_URL: str | None = None
+API_TOK: str | None = None
+PROJ: Any = None
 
 
 def file_to_list(filename: str) -> list[str]:
@@ -72,10 +74,20 @@ def download_redcap_report(
 
 
 def main() -> None:
+    global API_URL, API_TOK, PROJ
+
     args = docopt(__doc__ or "")
     if args["--debug"]:
         logger.setLevel(logging.DEBUG)
     logger.debug(args)
+
+    try:
+        API_URL = os.environ["REDCAP_API_URL"]
+        API_TOK = os.environ["REDCAP_API_TOKEN"]
+        PROJ = redcap.Project(API_URL, API_TOK)
+    except KeyError:
+        logger.error("REDCAP_API_URL and REDCAP_API_TOKEN must both be set!")
+        sys.exit(1)
 
     out_dir = Path(args["<output_dir>"])
     if not out_dir.is_dir():

@@ -41,6 +41,9 @@ API_URL: str | None = None
 API_TOK: str | None = None
 PROJ: Any = None
 
+EXIT_OK = 0
+EXIT_ERROR = 1
+
 INDEX_COLUMNS = [
     "redcap_event_name",
     "redcap_repeat_instrument",
@@ -57,7 +60,12 @@ def update_redcap_diff(
     max_records: int = 1000,
     strict_cols: bool = False,
     batch_size: int | None = None,
-) -> None:
+) -> int:
+    """Return the number of rows updated (0 if none; dry-run returns the count that would be updated).
+
+    Raises ValueError for invalid inputs or limit violations.
+    Other exceptions from the REDCap API propagate to the caller.
+    """
     # Read CSV with all columns as strings
     base_df = pl.read_csv(base_csv, infer_schema_length=0)
     base_df = base_df.cast({col: pl.String for col in base_df.columns})
@@ -70,6 +78,11 @@ def update_redcap_diff(
     # Read CSV with all columns as strings
     updated_df = pl.read_csv(updated_csv, infer_schema_length=0)
     updated_df = updated_df.cast({col: pl.String for col in updated_df.columns})
+    missing_key_cols = [c for c in key_cols if c not in updated_df.columns]
+    if missing_key_cols:
+        raise ValueError(
+            f"Updated CSV is missing key columns: {sorted(missing_key_cols)}"
+        )
     updated_df = updated_df.sort(key_cols)
 
     if not strict_cols:
@@ -85,7 +98,7 @@ def update_redcap_diff(
     )
     if len(diffs) == 0:
         logger.info("No changes to make")
-        return
+        return 0
     if max_records and len(diffs) > max_records:
         raise ValueError(
             f"Update would affect {len(diffs)} rows, exceeding --max-records limit of {max_records}"
@@ -104,21 +117,16 @@ def update_redcap_diff(
             f"Would import {len(batches)} {'batch' if len(batches) == 1 else 'batches'} of up to {effective_batch_size} records ({len(diffs)} total)"
         )
         logger.info(f"First change would have been {diffs[0]}")
-    else:
-        try:
-            for i, batch in enumerate(batches):
-                if len(batches) > 1:
-                    logger.info(
-                        f"Importing batch {i + 1}/{len(batches)} ({len(batch)} records)"
-                    )
-                result = PROJ.import_records(
-                    batch, background_import=background_import or None
-                )
-                logger.info(f"Import record result: {result}")
-        except Exception as e:
-            logger.error(f"Error importing records: {e}")
-            logger.error(traceback.format_exc())
-            return sys.exit(1)
+        return len(diffs)
+
+    for i, batch in enumerate(batches):
+        if len(batches) > 1:
+            logger.info(
+                f"Importing batch {i + 1}/{len(batches)} ({len(batch)} records)"
+            )
+        result = PROJ.import_records(batch, background_import=background_import or None)
+        logger.info(f"Import record result: {result}")
+    return len(diffs)
 
 
 def main() -> int:
@@ -140,10 +148,10 @@ def main() -> int:
 
     if max_records < 0:
         logger.error("--max-records must be nonnegative")
-        return 1
+        return EXIT_ERROR
     if batch_size is not None and batch_size < 1:
         logger.error("--batch-size must be a positive integer")
-        return 1
+        return EXIT_ERROR
 
     # Initialize API connection
     try:
@@ -157,19 +165,27 @@ def main() -> int:
             )
         else:
             logger.error("REDCAP_API_URL and REDCAP_API_TOKEN must both be set!")
-            return 1
+            return EXIT_ERROR
 
-    update_redcap_diff(
-        base_csv,
-        updated_csv,
-        dry_run,
-        allow_new,
-        background_import,
-        max_records,
-        strict_cols,
-        batch_size,
-    )
-    return 0
+    try:
+        update_redcap_diff(
+            base_csv,
+            updated_csv,
+            dry_run,
+            allow_new,
+            background_import,
+            max_records,
+            strict_cols,
+            batch_size,
+        )
+    except ValueError as e:
+        logger.error(str(e))
+        return EXIT_ERROR
+    except Exception as e:
+        logger.error(f"Error importing records: {e}")
+        logger.error(traceback.format_exc())
+        return EXIT_ERROR
+    return EXIT_OK
 
 
 if __name__ == "__main__":

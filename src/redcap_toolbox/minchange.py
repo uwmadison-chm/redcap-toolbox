@@ -48,6 +48,10 @@ def transformation_dicts(
     if source_df.columns != target_df.columns:
         raise ValueError("Source and target dfs have different columns")
 
+    # Check for duplicate key combinations
+    _check_no_duplicate_keys(source_df, key_cols, "Source")
+    _check_no_duplicate_keys(target_df, key_cols, "Target")
+
     # Handle different cases based on allow_new
     if allow_new:
         return _handle_with_new_rows(source_df, target_df, key_cols)
@@ -111,6 +115,12 @@ def _key_columns_match(
     )
 
 
+def _check_no_duplicate_keys(df: pl.DataFrame, key_cols: list[str], label: str) -> None:
+    """Raise ValueError if the DataFrame has duplicate key combinations."""
+    if df.select(key_cols).is_duplicated().any():
+        raise ValueError(f"{label} DataFrame has duplicate key combinations")
+
+
 def _handle_with_new_rows(
     source_df: pl.DataFrame, target_df: pl.DataFrame, key_cols: list[str]
 ) -> list[dict[str, Any]]:
@@ -129,9 +139,7 @@ def _handle_with_new_rows(
     if len(new_keys) > 0:
         new_rows = target_df.join(new_keys, on=key_cols, how="inner")
         for row_dict in new_rows.iter_rows(named=True):
-            new_row_dict = _create_new_row_dict(row_dict, key_cols)
-            if new_row_dict:
-                results.append(new_row_dict)
+            results.append(_create_new_row_dict(row_dict, key_cols))
 
     return results
 

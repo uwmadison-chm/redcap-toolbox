@@ -14,6 +14,7 @@ from tests.dataframe_factory import (
     create_df_with_different_index_levels,
     create_df_with_different_index_names,
     create_df_with_matching_index_format_new_values,
+    create_df_with_duplicate_keys,
 )
 
 
@@ -205,6 +206,28 @@ def test_transformation_dicts_index_format_mismatch_different_names():
             target_df,
             key_cols=["record_id", "redcap_event_name"],
             allow_new=True,
+        )
+
+
+def test_transformation_dicts_duplicate_keys_in_source():
+    """Duplicate key combinations in source should raise ValueError."""
+    source_df = create_df_with_duplicate_keys()
+    target_df = create_df_with_duplicate_keys()
+
+    with pytest.raises(ValueError, match="duplicate key combinations"):
+        transformation_dicts(
+            source_df, target_df, key_cols=["record_id", "redcap_event_name"]
+        )
+
+
+def test_transformation_dicts_duplicate_keys_in_target():
+    """Duplicate key combinations in target should raise ValueError."""
+    source_df = create_standard_df()
+    target_df = create_df_with_duplicate_keys()
+
+    with pytest.raises(ValueError, match="duplicate key combinations"):
+        transformation_dicts(
+            source_df, target_df, key_cols=["record_id", "redcap_event_name"]
         )
 
 
