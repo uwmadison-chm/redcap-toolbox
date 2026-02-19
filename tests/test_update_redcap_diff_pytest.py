@@ -124,13 +124,14 @@ def test_main_with_allow_new_flag(
         "--verbose": False,
         "--background": False,
         "--max-records": "1000",
+        "--strict-cols": False,
     }
 
     main()
 
     # Verify update_redcap_diff was called with allow_new=True, background_import=False
     mock_update_func.assert_called_once_with(
-        base_path, updated_path, False, True, False, 1000
+        base_path, updated_path, False, True, False, 1000, False
     )
 
 
@@ -155,13 +156,14 @@ def test_main_without_allow_new_flag(
         "--verbose": False,
         "--background": False,
         "--max-records": "1000",
+        "--strict-cols": False,
     }
 
     main()
 
     # Verify update_redcap_diff was called with allow_new=False, background_import=False
     mock_update_func.assert_called_once_with(
-        base_path, updated_path, False, False, False, 1000
+        base_path, updated_path, False, False, False, 1000, False
     )
 
 
@@ -224,13 +226,14 @@ def test_main_with_background_flag(
         "--verbose": False,
         "--background": True,
         "--max-records": "1000",
+        "--strict-cols": False,
     }
 
     main()
 
     # Verify update_redcap_diff was called with background_import=True
     mock_update_func.assert_called_once_with(
-        base_path, updated_path, False, False, True, 1000
+        base_path, updated_path, False, False, True, 1000, False
     )
 
 
@@ -294,3 +297,100 @@ def test_update_redcap_diff_max_records_zero_disables_limit(
         base_path, updated_path, dry_run=False, allow_new=False, max_records=0
     )
     mock_proj.import_records.assert_called_once()
+
+
+@pytest.fixture
+def subset_cols_csv_files():
+    """Create CSV files where updated has a subset of base columns."""
+    base_data = {
+        "record_id": ["1", "2", "3"],
+        "field1": ["a", "b", "c"],
+        "field2": ["x", "y", "z"],
+        "field3": ["p", "q", "r"],
+    }
+    # updated omits field3; field1 changed for record 1
+    updated_data = {
+        "record_id": ["1", "2", "3"],
+        "field1": ["a_new", "b", "c"],
+        "field2": ["x", "y", "z"],
+    }
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+        pl.DataFrame(base_data).write_csv(f.name)
+        base_path = f.name
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+        pl.DataFrame(updated_data).write_csv(f.name)
+        updated_path = f.name
+    yield base_path, updated_path
+    os.unlink(base_path)
+    os.unlink(updated_path)
+
+
+@patch("src.redcap_toolbox.update_redcap_diff.PROJ")
+def test_subset_cols_allowed_by_default(mock_proj, subset_cols_csv_files):
+    """Without --strict-cols, updated with a subset of base columns works."""
+    base_path, updated_path = subset_cols_csv_files
+    mock_proj.import_records.return_value = {"count": 1}
+
+    update_redcap_diff(base_path, updated_path, dry_run=False)
+
+    mock_proj.import_records.assert_called_once()
+    call_args = mock_proj.import_records.call_args[0][0]
+    assert len(call_args) == 1
+    assert call_args[0]["record_id"] == "1"
+    assert call_args[0]["field1"] == "a_new"
+    # field3 must not appear — it wasn't in updated_df
+    assert "field3" not in call_args[0]
+
+
+@patch("src.redcap_toolbox.update_redcap_diff.PROJ")
+def test_subset_cols_strict_cols_raises(mock_proj, subset_cols_csv_files):
+    """With --strict-cols, updated with a subset of base columns raises."""
+    base_path, updated_path = subset_cols_csv_files
+
+    with pytest.raises(ValueError, match="different columns"):
+        update_redcap_diff(base_path, updated_path, dry_run=False, strict_cols=True)
+
+    mock_proj.import_records.assert_not_called()
+
+
+@patch("src.redcap_toolbox.update_redcap_diff.PROJ")
+def test_extra_cols_in_updated_raises(mock_proj, subset_cols_csv_files):
+    """Without --strict-cols, columns in updated but not in base raise an error."""
+    # Swap base and updated so "updated" has more columns than "base"
+    base_path, updated_path = subset_cols_csv_files
+
+    with pytest.raises(ValueError, match="columns not in base CSV"):
+        # Pass them swapped: the smaller file is "base", larger is "updated"
+        update_redcap_diff(updated_path, base_path, dry_run=False)
+
+    mock_proj.import_records.assert_not_called()
+
+
+@patch("redcap.Project")
+@patch("docopt.docopt")
+@patch("src.redcap_toolbox.update_redcap_diff.update_redcap_diff")
+@patch.dict(
+    os.environ, {"REDCAP_API_URL": "test_url", "REDCAP_API_TOKEN": "test_token"}
+)
+def test_main_with_strict_cols_flag(
+    mock_update_func, mock_docopt, mock_redcap, temp_csv_files
+):
+    """Test that main passes strict_cols=True when --strict-cols is set."""
+    base_path, updated_path = temp_csv_files
+
+    mock_docopt.return_value = {
+        "<base_csv>": base_path,
+        "<updated_csv>": updated_path,
+        "--dry-run": False,
+        "--allow-new": False,
+        "--verbose": False,
+        "--background": False,
+        "--max-records": "1000",
+        "--strict-cols": True,
+    }
+
+    main()
+
+    mock_update_func.assert_called_once_with(
+        base_path, updated_path, False, False, False, 1000, True
+    )

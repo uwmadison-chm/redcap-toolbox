@@ -15,6 +15,7 @@ Options:
     --background        Use background import mode.
     --dry-run           Don't actually make changes.
     --max-records N     Exit with error if update exceeds N rows; 0 disables limit. [default: 1000]
+    --strict-cols       Require updated CSV columns to exactly match base CSV columns.
     -h --help           Show this screen.
     -v --verbose        Show debug logging.
 """
@@ -53,6 +54,7 @@ def update_redcap_diff(
     allow_new: bool = False,
     background_import: bool = False,
     max_records: int = 1000,
+    strict_cols: bool = False,
 ) -> None:
     # Read CSV with all columns as strings
     base_df = pl.read_csv(base_csv, infer_schema_length=0)
@@ -67,6 +69,14 @@ def update_redcap_diff(
     updated_df = pl.read_csv(updated_csv, infer_schema_length=0)
     updated_df = updated_df.cast({col: pl.String for col in updated_df.columns})
     updated_df = updated_df.sort(key_cols)
+
+    if not strict_cols:
+        extra_cols = set(updated_df.columns) - set(base_df.columns)
+        if extra_cols:
+            raise ValueError(
+                f"Updated CSV has columns not in base CSV: {sorted(extra_cols)}"
+            )
+        base_df = base_df.select(updated_df.columns)
 
     diffs = redcap_toolbox.minchange.transformation_dicts(
         base_df, updated_df, key_cols=key_cols, allow_new=allow_new
@@ -107,6 +117,7 @@ def main() -> int:
     allow_new = args["--allow-new"]
     background_import = args["--background"]
     max_records = int(args["--max-records"])
+    strict_cols = args["--strict-cols"]
 
     # Initialize API connection
     try:
@@ -129,6 +140,7 @@ def main() -> int:
         allow_new,
         background_import,
         max_records,
+        strict_cols,
     )
     return 0
 
