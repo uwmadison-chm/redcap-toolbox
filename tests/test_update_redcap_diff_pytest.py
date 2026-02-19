@@ -123,6 +123,7 @@ def test_main_with_allow_new_flag(
         "--allow-new": True,
         "--verbose": False,
         "--background": False,
+        "--batch-size": None,
         "--max-records": "1000",
         "--strict-cols": False,
     }
@@ -131,7 +132,7 @@ def test_main_with_allow_new_flag(
 
     # Verify update_redcap_diff was called with allow_new=True, background_import=False
     mock_update_func.assert_called_once_with(
-        base_path, updated_path, False, True, False, 1000, False
+        base_path, updated_path, False, True, False, 1000, False, None
     )
 
 
@@ -155,6 +156,7 @@ def test_main_without_allow_new_flag(
         "--allow-new": False,
         "--verbose": False,
         "--background": False,
+        "--batch-size": None,
         "--max-records": "1000",
         "--strict-cols": False,
     }
@@ -163,7 +165,7 @@ def test_main_without_allow_new_flag(
 
     # Verify update_redcap_diff was called with allow_new=False, background_import=False
     mock_update_func.assert_called_once_with(
-        base_path, updated_path, False, False, False, 1000, False
+        base_path, updated_path, False, False, False, 1000, False, None
     )
 
 
@@ -225,6 +227,7 @@ def test_main_with_background_flag(
         "--allow-new": False,
         "--verbose": False,
         "--background": True,
+        "--batch-size": None,
         "--max-records": "1000",
         "--strict-cols": False,
     }
@@ -233,7 +236,7 @@ def test_main_with_background_flag(
 
     # Verify update_redcap_diff was called with background_import=True
     mock_update_func.assert_called_once_with(
-        base_path, updated_path, False, False, True, 1000, False
+        base_path, updated_path, False, False, True, 1000, False, None
     )
 
 
@@ -385,6 +388,7 @@ def test_main_with_strict_cols_flag(
         "--allow-new": False,
         "--verbose": False,
         "--background": False,
+        "--batch-size": None,
         "--max-records": "1000",
         "--strict-cols": True,
     }
@@ -392,5 +396,172 @@ def test_main_with_strict_cols_flag(
     main()
 
     mock_update_func.assert_called_once_with(
-        base_path, updated_path, False, False, False, 1000, True
+        base_path, updated_path, False, False, False, 1000, True, None
     )
+
+
+@patch("src.redcap_toolbox.update_redcap_diff.PROJ")
+def test_batch_size_calls_import_records_multiple_times(
+    mock_proj, many_diffs_csv_files
+):
+    """With batch_size=1 and 3 diffs, import_records is called 3 times."""
+    base_path, updated_path = many_diffs_csv_files
+    mock_proj.import_records.return_value = {"count": 1}
+
+    update_redcap_diff(
+        base_path, updated_path, dry_run=False, allow_new=False, batch_size=1
+    )
+
+    assert mock_proj.import_records.call_count == 3
+
+
+@patch("src.redcap_toolbox.update_redcap_diff.PROJ")
+def test_batch_size_none_calls_import_records_once(mock_proj, many_diffs_csv_files):
+    """With batch_size=None (default), import_records is called exactly once."""
+    base_path, updated_path = many_diffs_csv_files
+    mock_proj.import_records.return_value = {"count": 3}
+
+    update_redcap_diff(
+        base_path, updated_path, dry_run=False, allow_new=False, batch_size=None
+    )
+
+    mock_proj.import_records.assert_called_once()
+
+
+@patch("src.redcap_toolbox.update_redcap_diff.PROJ")
+def test_batch_size_max_records_still_enforced(mock_proj, many_diffs_csv_files):
+    """max_records check precedes batching; ValueError raised even with batch_size set."""
+    base_path, updated_path = many_diffs_csv_files
+
+    with pytest.raises(ValueError, match="exceeding --max-records limit"):
+        update_redcap_diff(
+            base_path,
+            updated_path,
+            dry_run=False,
+            allow_new=False,
+            max_records=2,
+            batch_size=1,
+        )
+    mock_proj.import_records.assert_not_called()
+
+
+@patch("redcap.Project")
+@patch("docopt.docopt")
+@patch("src.redcap_toolbox.update_redcap_diff.update_redcap_diff")
+@patch.dict(
+    os.environ, {"REDCAP_API_URL": "test_url", "REDCAP_API_TOKEN": "test_token"}
+)
+def test_main_with_batch_size(
+    mock_update_func, mock_docopt, mock_redcap, temp_csv_files
+):
+    """main() parses --batch-size and passes batch_size=2 to update_redcap_diff."""
+    base_path, updated_path = temp_csv_files
+
+    mock_docopt.return_value = {
+        "<base_csv>": base_path,
+        "<updated_csv>": updated_path,
+        "--dry-run": False,
+        "--allow-new": False,
+        "--verbose": False,
+        "--background": False,
+        "--batch-size": "2",
+        "--max-records": "1000",
+        "--strict-cols": False,
+    }
+
+    main()
+
+    mock_update_func.assert_called_once_with(
+        base_path, updated_path, False, False, False, 1000, False, 2
+    )
+
+
+@patch("redcap.Project")
+@patch("docopt.docopt")
+@patch("src.redcap_toolbox.update_redcap_diff.update_redcap_diff")
+@patch.dict(
+    os.environ, {"REDCAP_API_URL": "test_url", "REDCAP_API_TOKEN": "test_token"}
+)
+def test_main_without_batch_size(
+    mock_update_func, mock_docopt, mock_redcap, temp_csv_files
+):
+    """main() passes batch_size=None when --batch-size is not provided."""
+    base_path, updated_path = temp_csv_files
+
+    mock_docopt.return_value = {
+        "<base_csv>": base_path,
+        "<updated_csv>": updated_path,
+        "--dry-run": False,
+        "--allow-new": False,
+        "--verbose": False,
+        "--background": False,
+        "--batch-size": None,
+        "--max-records": "1000",
+        "--strict-cols": False,
+    }
+
+    main()
+
+    mock_update_func.assert_called_once_with(
+        base_path, updated_path, False, False, False, 1000, False, None
+    )
+
+
+@patch("redcap.Project")
+@patch("docopt.docopt")
+@patch("src.redcap_toolbox.update_redcap_diff.update_redcap_diff")
+@patch.dict(
+    os.environ, {"REDCAP_API_URL": "test_url", "REDCAP_API_TOKEN": "test_token"}
+)
+def test_main_negative_max_records_returns_error(
+    mock_update_func, mock_docopt, mock_redcap, temp_csv_files
+):
+    """main() returns 1 and does not call update_redcap_diff when --max-records is negative."""
+    base_path, updated_path = temp_csv_files
+
+    mock_docopt.return_value = {
+        "<base_csv>": base_path,
+        "<updated_csv>": updated_path,
+        "--dry-run": False,
+        "--allow-new": False,
+        "--verbose": False,
+        "--background": False,
+        "--batch-size": None,
+        "--max-records": "-1",
+        "--strict-cols": False,
+    }
+
+    result = main()
+
+    assert result == 1
+    mock_update_func.assert_not_called()
+
+
+@patch("redcap.Project")
+@patch("docopt.docopt")
+@patch("src.redcap_toolbox.update_redcap_diff.update_redcap_diff")
+@patch.dict(
+    os.environ, {"REDCAP_API_URL": "test_url", "REDCAP_API_TOKEN": "test_token"}
+)
+def test_main_zero_batch_size_returns_error(
+    mock_update_func, mock_docopt, mock_redcap, temp_csv_files
+):
+    """main() returns 1 and does not call update_redcap_diff when --batch-size is 0."""
+    base_path, updated_path = temp_csv_files
+
+    mock_docopt.return_value = {
+        "<base_csv>": base_path,
+        "<updated_csv>": updated_path,
+        "--dry-run": False,
+        "--allow-new": False,
+        "--verbose": False,
+        "--background": False,
+        "--batch-size": "0",
+        "--max-records": "1000",
+        "--strict-cols": False,
+    }
+
+    result = main()
+
+    assert result == 1
+    mock_update_func.assert_not_called()

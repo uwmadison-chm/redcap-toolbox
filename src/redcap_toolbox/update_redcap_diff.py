@@ -13,6 +13,7 @@ Usage: update_redcap_diff.py [options] <base_csv> <updated_csv>
 Options:
     --allow-new         Allow adding new rows to REDCap.
     --background        Use background import mode.
+    --batch-size N      Import records in batches of N rows.
     --dry-run           Don't actually make changes.
     --max-records N     Exit with error if update exceeds N rows; 0 disables limit. [default: 1000]
     --strict-cols       Require updated CSV columns to exactly match base CSV columns.
@@ -55,6 +56,7 @@ def update_redcap_diff(
     background_import: bool = False,
     max_records: int = 1000,
     strict_cols: bool = False,
+    batch_size: int | None = None,
 ) -> None:
     # Read CSV with all columns as strings
     base_df = pl.read_csv(base_csv, infer_schema_length=0)
@@ -90,13 +92,30 @@ def update_redcap_diff(
         )
     logger.debug(f"Diffs: {diffs}")
 
+    batches = (
+        [diffs[i : i + batch_size] for i in range(0, len(diffs), batch_size)]
+        if batch_size
+        else [diffs]
+    )
+
     if dry_run:
         logger.warning("DRY RUN, NOT UPDATING ANYTHING")
+        if batch_size:
+            logger.info(
+                f"Would import {len(batches)} batches of up to {batch_size} records ({len(diffs)} total)"
+            )
         logger.info(f"First change would have been {diffs[0]}")
     else:
         try:
-            result = PROJ.import_records(diffs, background_import=background_import or None)
-            logger.info(f"Import record result: {result}")
+            for i, batch in enumerate(batches):
+                if len(batches) > 1:
+                    logger.info(
+                        f"Importing batch {i + 1}/{len(batches)} ({len(batch)} records)"
+                    )
+                result = PROJ.import_records(
+                    batch, background_import=background_import or None
+                )
+                logger.info(f"Import record result: {result}")
         except Exception as e:
             logger.error(f"Error importing records: {e}")
             logger.error(traceback.format_exc())
@@ -118,6 +137,14 @@ def main() -> int:
     background_import = args["--background"]
     max_records = int(args["--max-records"])
     strict_cols = args["--strict-cols"]
+    batch_size = int(args["--batch-size"]) if args["--batch-size"] else None
+
+    if max_records < 0:
+        logger.error("--max-records must be nonnegative")
+        return 1
+    if batch_size is not None and batch_size < 1:
+        logger.error("--batch-size must be a positive integer")
+        return 1
 
     # Initialize API connection
     try:
@@ -141,6 +168,7 @@ def main() -> int:
         background_import,
         max_records,
         strict_cols,
+        batch_size,
     )
     return 0
 
