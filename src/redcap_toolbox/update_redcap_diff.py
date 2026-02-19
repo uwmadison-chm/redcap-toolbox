@@ -11,11 +11,12 @@ REDCAP_API_TOKEN
 Usage: update_redcap_diff.py [options] <base_csv> <updated_csv>
 
 Options:
-    --allow-new   Allow adding new rows to REDCap.
-    --background  Use background import mode.
-    --dry-run     Don't actually make changes.
-    -h --help     Show this screen.
-    -v --verbose  Show debug logging.
+    --allow-new         Allow adding new rows to REDCap.
+    --background        Use background import mode.
+    --dry-run           Don't actually make changes.
+    --max-records N     Exit with error if update exceeds N rows; 0 disables limit. [default: 1000]
+    -h --help           Show this screen.
+    -v --verbose        Show debug logging.
 """
 
 import logging
@@ -50,6 +51,7 @@ def update_redcap_diff(
     dry_run: bool,
     allow_new: bool = False,
     background_import: bool = False,
+    max_records: int = 1000,
 ) -> None:
     # Read CSV with all columns as strings
     base_df = pl.read_csv(base_csv, infer_schema_length=0)
@@ -71,6 +73,10 @@ def update_redcap_diff(
     if len(diffs) == 0:
         logger.info("No changes to make")
         return
+    if max_records and len(diffs) > max_records:
+        raise ValueError(
+            f"Update would affect {len(diffs)} rows, exceeding --max-records limit of {max_records}"
+        )
     logger.debug(f"Diffs: {diffs}")
 
     if dry_run:
@@ -94,6 +100,7 @@ def main() -> int:
     dry_run = args["--dry-run"]
     allow_new = args["--allow-new"]
     background_import = args["--background"]
+    max_records = int(args["--max-records"])
 
     # Initialize API connection
     try:
@@ -115,6 +122,7 @@ def main() -> int:
         dry_run,
         allow_new,
         background_import,
+        max_records,
     )
     return 0
 

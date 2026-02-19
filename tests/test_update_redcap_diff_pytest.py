@@ -123,13 +123,14 @@ def test_main_with_allow_new_flag(
         "--allow-new": True,
         "--verbose": False,
         "--background": False,
+        "--max-records": "1000",
     }
 
     main()
 
     # Verify update_redcap_diff was called with allow_new=True, background_import=False
     mock_update_func.assert_called_once_with(
-        base_path, updated_path, False, True, False
+        base_path, updated_path, False, True, False, 1000
     )
 
 
@@ -153,13 +154,14 @@ def test_main_without_allow_new_flag(
         "--allow-new": False,
         "--verbose": False,
         "--background": False,
+        "--max-records": "1000",
     }
 
     main()
 
     # Verify update_redcap_diff was called with allow_new=False, background_import=False
     mock_update_func.assert_called_once_with(
-        base_path, updated_path, False, False, False
+        base_path, updated_path, False, False, False, 1000
     )
 
 
@@ -221,11 +223,74 @@ def test_main_with_background_flag(
         "--allow-new": False,
         "--verbose": False,
         "--background": True,
+        "--max-records": "1000",
     }
 
     main()
 
     # Verify update_redcap_diff was called with background_import=True
     mock_update_func.assert_called_once_with(
-        base_path, updated_path, False, False, True
+        base_path, updated_path, False, False, True, 1000
     )
+
+
+@pytest.fixture
+def many_diffs_csv_files():
+    """Create CSV files where many rows are changed."""
+    base_data = {
+        "record_id": ["1", "2", "3"],
+        "field1": ["a", "b", "c"],
+    }
+    updated_data = {
+        "record_id": ["1", "2", "3"],
+        "field1": ["x", "y", "z"],
+    }
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+        pl.DataFrame(base_data).write_csv(f.name)
+        base_path = f.name
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+        pl.DataFrame(updated_data).write_csv(f.name)
+        updated_path = f.name
+    yield base_path, updated_path
+    os.unlink(base_path)
+    os.unlink(updated_path)
+
+
+@patch("src.redcap_toolbox.update_redcap_diff.PROJ")
+def test_update_redcap_diff_max_records_exceeded(mock_proj, many_diffs_csv_files):
+    """Test that a ValueError is raised when diffs exceed max_records."""
+    base_path, updated_path = many_diffs_csv_files
+
+    with pytest.raises(ValueError, match="exceeding --max-records limit"):
+        update_redcap_diff(
+            base_path, updated_path, dry_run=False, allow_new=False, max_records=2
+        )
+    mock_proj.import_records.assert_not_called()
+
+
+@patch("src.redcap_toolbox.update_redcap_diff.PROJ")
+def test_update_redcap_diff_max_records_not_exceeded(mock_proj, many_diffs_csv_files):
+    """Test that update proceeds when diffs are within the max_records limit."""
+    base_path, updated_path = many_diffs_csv_files
+
+    mock_proj.import_records.return_value = {"count": 3}
+
+    update_redcap_diff(
+        base_path, updated_path, dry_run=False, allow_new=False, max_records=5
+    )
+    mock_proj.import_records.assert_called_once()
+
+
+@patch("src.redcap_toolbox.update_redcap_diff.PROJ")
+def test_update_redcap_diff_max_records_zero_disables_limit(
+    mock_proj, many_diffs_csv_files
+):
+    """Test that max_records=0 disables the limit entirely."""
+    base_path, updated_path = many_diffs_csv_files
+
+    mock_proj.import_records.return_value = {"count": 3}
+
+    update_redcap_diff(
+        base_path, updated_path, dry_run=False, allow_new=False, max_records=0
+    )
+    mock_proj.import_records.assert_called_once()
