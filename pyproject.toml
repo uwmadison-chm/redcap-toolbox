@@ -5,7 +5,7 @@ build-backend = "uv_build"
 [project]
 name = "redcap_toolbox"
 requires-python = ">= 3.10"
-version = "2025.07.29"
+version = "2025.09.10"
 authors = [
     { name="Nate Vack", email="njvack@wisc.edu"},
     { name="Stuti Shrivastava", email="sshrivastav6@wisc.edu" },
@@ -15,7 +15,6 @@ maintainers = [
     { name="Nate Vack", email="njvack@wisc.edu"},
     { name="Stuti Shrivastava", email="sshrivastav6@wisc.edu" },
 ]
-
 description = "A collection of tools to interact with the REDCap API"
 readme = "README.md"
 classifiers = [

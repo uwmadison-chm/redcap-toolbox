@@ -23,6 +23,7 @@ import logging
 import os
 import sys
 from typing import Any
+import traceback
 
 import docopt
 import polars as pl
@@ -83,8 +84,13 @@ def update_redcap_diff(
         logger.warning("DRY RUN, NOT UPDATING ANYTHING")
         logger.info(f"First change would have been {diffs[0]}")
     else:
-        result = PROJ.import_records(diffs, background_import=background_import or None)
-        logger.info(f"Import record result: {result}")
+        try:
+            result = PROJ.import_records(diffs, background_import=background_import or None)
+            logger.info(f"Import record result: {result}")
+        except Exception as e:
+            logger.error(f"Error importing records: {e}")
+            logger.error(traceback.format_exc())
+            return sys.exit(1)
 
 
 def main() -> int:
