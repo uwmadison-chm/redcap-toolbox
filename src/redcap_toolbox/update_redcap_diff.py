@@ -92,18 +92,17 @@ def update_redcap_diff(
         )
     logger.debug(f"Diffs: {diffs}")
 
-    batches = (
-        [diffs[i : i + batch_size] for i in range(0, len(diffs), batch_size)]
-        if batch_size
-        else [diffs]
-    )
+    effective_batch_size = batch_size or len(diffs)
+    batches = [
+        diffs[i : i + effective_batch_size]
+        for i in range(0, len(diffs), effective_batch_size)
+    ]
 
     if dry_run:
         logger.warning("DRY RUN, NOT UPDATING ANYTHING")
-        if batch_size:
-            logger.info(
-                f"Would import {len(batches)} batches of up to {batch_size} records ({len(diffs)} total)"
-            )
+        logger.info(
+            f"Would import {len(batches)} {'batch' if len(batches) == 1 else 'batches'} of up to {effective_batch_size} records ({len(diffs)} total)"
+        )
         logger.info(f"First change would have been {diffs[0]}")
     else:
         try:
