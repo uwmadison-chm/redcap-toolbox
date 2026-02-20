@@ -92,7 +92,7 @@ def write_timestamp(output_file: Path, ts: datetime) -> None:
 
 
 def export_records(date_begin: datetime | None = None) -> str:
-    kwargs: dict[str, Any] = {"format_type": "csv"}
+    kwargs: dict[str, Any] = {"format_type": "csv", "export_survey_fields": True}
     if date_begin is not None:
         kwargs["date_begin"] = date_begin.strftime(TIMESTAMP_FORMAT)
     return PROJ.export_records(**kwargs)  # type: ignore[union-attr]
