@@ -82,7 +82,7 @@ def condense_df_setup():
     return data
 
 
-@patch("src.redcap_toolbox.split_redcap_data.pl.read_csv")
+@patch("src.redcap_toolbox.split_redcap_data.read_csv")
 def test_make_event_map_with_file(mock_read_csv, event_df: pl.DataFrame):
     """
     Tests make_event_map with pre-defined event dataframe.
@@ -93,10 +93,7 @@ def test_make_event_map_with_file(mock_read_csv, event_df: pl.DataFrame):
     expected = {"scr_arm_1": "scr", "pre_arm_1": "pre", "post_arm_1": "post"}
 
     assert result == expected
-    mock_read_csv.assert_called_once_with(
-        "mock_mapping_file.csv",
-        dtypes={"redcap_event": pl.String, "filename_event": pl.String},
-    )
+    mock_read_csv.assert_called_once_with("mock_mapping_file.csv")
 
 
 def test_make_event_map_no_file():

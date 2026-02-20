@@ -44,6 +44,7 @@ from typing import Any
 
 import docopt
 import polars as pl
+from redcap_toolbox.csv_utils import read_csv
 
 logging.basicConfig(format="%(message)s")
 logger = logging.getLogger(__name__)
@@ -53,9 +54,7 @@ logger.setLevel(logging.INFO)
 def make_event_map(mapping_file: str | None) -> dict[str, str]:
     if mapping_file is None:
         return {}
-    map_df = pl.read_csv(
-        mapping_file, dtypes={"redcap_event": pl.String, "filename_event": pl.String}
-    )
+    map_df = read_csv(mapping_file)
     event_map = dict(zip(map_df["redcap_event"], map_df["filename_event"]))
     return event_map
 
@@ -148,10 +147,7 @@ def split_redcap_data(
 ) -> None:
     event_map = make_event_map(mapping_file)
     logger.debug(f"Event map: {event_map}")
-    # Read CSV with all columns as strings
-    data = pl.read_csv(input_file, infer_schema_length=0)
-    # Convert all columns to string type
-    data = data.cast({col: pl.String for col in data.columns})
+    data = read_csv(input_file)
     # Make sure the event and repeating columns are present, so we can process
     # the data the same in all cases.
     if "redcap_event_name" not in data.columns:

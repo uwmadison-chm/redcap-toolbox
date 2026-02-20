@@ -41,6 +41,7 @@ download_redcap = "redcap_toolbox.download_redcap:main"
 split_redcap_data = "redcap_toolbox.split_redcap_data:main"
 update_redcap_diff = "redcap_toolbox.update_redcap_diff:main"
 download_redcap_report = "redcap_toolbox.download_redcap_report:main"
+download_redcap_incremental = "redcap_toolbox.download_redcap_incremental:main"
 
 [dependency-groups]
 dev = [
@@ -55,3 +56,4 @@ pycap = { url = "https://github.com/uwmadison-chm/PyCap/archive/refs/tags/2.7.1-
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]

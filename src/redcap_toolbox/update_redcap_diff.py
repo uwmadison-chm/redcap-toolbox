@@ -31,6 +31,7 @@ import docopt
 import polars as pl
 import redcap
 import redcap_toolbox.minchange
+from redcap_toolbox.csv_utils import key_cols_for, read_csv
 
 logging.basicConfig(format="%(message)s")
 logger = logging.getLogger(__name__)
@@ -43,12 +44,6 @@ PROJ: Any = None
 
 EXIT_OK = 0
 EXIT_ERROR = 1
-
-INDEX_COLUMNS = [
-    "redcap_event_name",
-    "redcap_repeat_instrument",
-    "redcap_repeat_instance",
-]
 
 
 def update_redcap_diff(
@@ -66,18 +61,11 @@ def update_redcap_diff(
     Raises ValueError for invalid inputs or limit violations.
     Other exceptions from the REDCap API propagate to the caller.
     """
-    # Read CSV with all columns as strings
-    base_df = pl.read_csv(base_csv, infer_schema_length=0)
-    base_df = base_df.cast({col: pl.String for col in base_df.columns})
-    key_cols = [base_df.columns[0]]
-    for icol in INDEX_COLUMNS:
-        if icol in base_df.columns:
-            key_cols.append(icol)
+    base_df = read_csv(base_csv)
+    key_cols = key_cols_for(base_df)
     base_df = base_df.sort(key_cols)
     logger.debug(f"Using key columns: {key_cols}")
-    # Read CSV with all columns as strings
-    updated_df = pl.read_csv(updated_csv, infer_schema_length=0)
-    updated_df = updated_df.cast({col: pl.String for col in updated_df.columns})
+    updated_df = read_csv(updated_csv)
     missing_key_cols = [c for c in key_cols if c not in updated_df.columns]
     if missing_key_cols:
         raise ValueError(
