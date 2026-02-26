@@ -131,7 +131,7 @@ def test_main_with_allow_new_flag(
 
     main()
 
-    # Verify update_redcap_diff was called with allow_new=True, background_import=False
+    # Verify update_redcap_diff was called with allow_new=True, background_process=False
     mock_update_func.assert_called_once_with(
         base_path, updated_path, False, True, False, 1000, False, None
     )
@@ -164,48 +164,48 @@ def test_main_without_allow_new_flag(
 
     main()
 
-    # Verify update_redcap_diff was called with allow_new=False, background_import=False
+    # Verify update_redcap_diff was called with allow_new=False, background_process=False
     mock_update_func.assert_called_once_with(
         base_path, updated_path, False, False, False, 1000, False, None
     )
 
 
 @patch("src.redcap_toolbox.update_redcap_diff.PROJ")
-def test_update_redcap_diff_with_background_import_true(mock_proj, temp_csv_files):
-    """Test that update_redcap_diff passes background_import=True to import_records."""
+def test_update_redcap_diff_with_background_process_true(mock_proj, temp_csv_files):
+    """Test that update_redcap_diff passes background_process=True to import_records."""
     base_path, updated_path = temp_csv_files
 
     # Mock the import_records method
     mock_proj.import_records.return_value = {"count": 1}
 
-    # Call with background_import=True
+    # Call with background_process=True
     update_redcap_diff(
-        base_path, updated_path, dry_run=False, allow_new=True, background_import=True
+        base_path, updated_path, dry_run=False, allow_new=True, background_process=True
     )
 
-    # Verify import_records was called with background_import=True
+    # Verify import_records was called with background_process=True
     mock_proj.import_records.assert_called_once()
     call_kwargs = mock_proj.import_records.call_args[1]
-    assert call_kwargs.get("background_import") is True
+    assert call_kwargs.get("background_process") is True
 
 
 @patch("src.redcap_toolbox.update_redcap_diff.PROJ")
-def test_update_redcap_diff_with_background_import_false(mock_proj, temp_csv_files):
-    """Test that update_redcap_diff passes background_import=None when False."""
+def test_update_redcap_diff_with_background_process_false(mock_proj, temp_csv_files):
+    """Test that update_redcap_diff passes background_process=None when False."""
     base_path, updated_path = temp_csv_files
 
     # Mock the import_records method
     mock_proj.import_records.return_value = {"count": 1}
 
-    # Call with background_import=False (default)
+    # Call with background_process=False (default)
     update_redcap_diff(
-        base_path, updated_path, dry_run=False, allow_new=True, background_import=False
+        base_path, updated_path, dry_run=False, allow_new=True, background_process=False
     )
 
-    # Verify import_records was called with background_import=None
+    # Verify import_records was called with background_process=None
     mock_proj.import_records.assert_called_once()
     call_kwargs = mock_proj.import_records.call_args[1]
-    assert call_kwargs.get("background_import") is None
+    assert call_kwargs.get("background_process") is None
 
 
 @patch("redcap.Project")
@@ -235,7 +235,7 @@ def test_main_with_background_flag(
 
     main()
 
-    # Verify update_redcap_diff was called with background_import=True
+    # Verify update_redcap_diff was called with background_process=True
     mock_update_func.assert_called_once_with(
         base_path, updated_path, False, False, True, 1000, False, None
     )

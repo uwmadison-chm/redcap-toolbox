@@ -51,7 +51,7 @@ def update_redcap_diff(
     updated_csv: str,
     dry_run: bool,
     allow_new: bool = False,
-    background_import: bool = False,
+    background_process: bool = False,
     max_records: int = 1000,
     strict_cols: bool = False,
     batch_size: int | None = None,
@@ -112,7 +112,9 @@ def update_redcap_diff(
             logger.info(
                 f"Importing batch {i + 1}/{len(batches)} ({len(batch)} records)"
             )
-        result = PROJ.import_records(batch, background_import=background_import or None)
+        result = PROJ.import_records(
+            batch, background_process=background_process or None
+        )
         logger.info(f"Import record result: {result}")
     return len(diffs)
 
@@ -129,7 +131,7 @@ def main() -> int:
     updated_csv = args["<updated_csv>"]
     dry_run = args["--dry-run"]
     allow_new = args["--allow-new"]
-    background_import = args["--background"]
+    background_process = args["--background"]
     max_records = int(args["--max-records"])
     strict_cols = args["--strict-cols"]
     batch_size = int(args["--batch-size"]) if args["--batch-size"] else None
@@ -161,7 +163,7 @@ def main() -> int:
             updated_csv,
             dry_run,
             allow_new,
-            background_import,
+            background_process,
             max_records,
             strict_cols,
             batch_size,
