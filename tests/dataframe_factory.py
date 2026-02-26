@@ -160,6 +160,44 @@ def create_df_with_duplicate_keys():
     return df
 
 
+def create_repeat_instance_source_df():
+    """Source df with redcap_repeat_instance as a key column."""
+    data = {
+        "record_id": ["1", "1"],
+        "redcap_event_name": ["scr_arm_1", "scr_arm_1"],
+        "redcap_repeat_instrument": ["my_form", "my_form"],
+        "redcap_repeat_instance": ["1", "2"],
+        "field1": ["a", "b"],
+    }
+    return pl.DataFrame(data)
+
+
+def create_df_with_new_blank_repeat_instances():
+    """Target df: source rows plus two new rows with blank redcap_repeat_instance."""
+    base = create_repeat_instance_source_df()
+    new_data = {
+        "record_id": ["1", "1"],
+        "redcap_event_name": ["scr_arm_1", "scr_arm_1"],
+        "redcap_repeat_instrument": ["my_form", "my_form"],
+        "redcap_repeat_instance": ["", ""],
+        "field1": ["c", "d"],
+    }
+    return pl.concat([base, pl.DataFrame(new_data)])
+
+
+def create_df_with_fully_specified_duplicate_new_rows():
+    """Target df: source rows plus two new rows with identical fully-specified keys."""
+    base = create_repeat_instance_source_df()
+    new_data = {
+        "record_id": ["2", "2"],
+        "redcap_event_name": ["scr_arm_1", "scr_arm_1"],
+        "redcap_repeat_instrument": ["my_form", "my_form"],
+        "redcap_repeat_instance": ["1", "1"],
+        "field1": ["e", "f"],
+    }
+    return pl.concat([base, pl.DataFrame(new_data)])
+
+
 def create_df_with_matching_index_format_new_values():
     """Create DataFrame with matching index format but new values."""
     data = {

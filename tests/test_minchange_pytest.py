@@ -15,6 +15,9 @@ from tests.dataframe_factory import (
     create_df_with_different_index_names,
     create_df_with_matching_index_format_new_values,
     create_df_with_duplicate_keys,
+    create_repeat_instance_source_df,
+    create_df_with_new_blank_repeat_instances,
+    create_df_with_fully_specified_duplicate_new_rows,
 )
 
 
@@ -229,6 +232,72 @@ def test_transformation_dicts_duplicate_keys_in_target():
         transformation_dicts(
             source_df, target_df, key_cols=["record_id", "redcap_event_name"]
         )
+
+
+def test_blank_repeat_instance_allowed_with_allow_new():
+    """Rows with blank redcap_repeat_instance are not treated as duplicate keys when allow_new=True."""
+    key_cols = [
+        "record_id",
+        "redcap_event_name",
+        "redcap_repeat_instrument",
+        "redcap_repeat_instance",
+    ]
+    source_df = create_repeat_instance_source_df()
+    target_df = create_df_with_new_blank_repeat_instances()
+
+    result = transformation_dicts(
+        source_df, target_df, key_cols=key_cols, allow_new=True
+    )
+
+    new_rows = [r for r in result if r["redcap_repeat_instance"] == ""]
+    assert len(new_rows) == 2
+    assert {r["field1"] for r in new_rows} == {"c", "d"}
+
+
+def test_blank_record_id_allowed_with_allow_new():
+    """Rows with blank record_id (auto-assigned by REDCap) are not duplicate keys when allow_new=True."""
+    import polars as pl
+
+    source_df = pl.DataFrame(
+        {
+            "record_id": ["1", "2"],
+            "redcap_event_name": ["scr_arm_1", "scr_arm_1"],
+            "field1": ["a", "b"],
+        }
+    )
+    target_df = pl.DataFrame(
+        {
+            "record_id": ["1", "2", "", ""],
+            "redcap_event_name": ["scr_arm_1", "scr_arm_1", "scr_arm_1", "scr_arm_1"],
+            "field1": ["a", "b", "new1", "new2"],
+        }
+    )
+
+    result = transformation_dicts(
+        source_df,
+        target_df,
+        key_cols=["record_id", "redcap_event_name"],
+        allow_new=True,
+    )
+
+    new_rows = [r for r in result if r["record_id"] == ""]
+    assert len(new_rows) == 2
+    assert {r["field1"] for r in new_rows} == {"new1", "new2"}
+
+
+def test_fully_specified_duplicate_still_raises_with_allow_new():
+    """Fully-specified duplicate keys in target still raise ValueError even with allow_new=True."""
+    key_cols = [
+        "record_id",
+        "redcap_event_name",
+        "redcap_repeat_instrument",
+        "redcap_repeat_instance",
+    ]
+    source_df = create_repeat_instance_source_df()
+    target_df = create_df_with_fully_specified_duplicate_new_rows()
+
+    with pytest.raises(ValueError, match="duplicate key combinations"):
+        transformation_dicts(source_df, target_df, key_cols=key_cols, allow_new=True)
 
 
 def test_transformation_dicts_index_format_match_different_values():

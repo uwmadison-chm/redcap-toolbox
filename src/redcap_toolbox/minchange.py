@@ -48,9 +48,13 @@ def transformation_dicts(
     if source_df.columns != target_df.columns:
         raise ValueError("Source and target dfs have different columns")
 
-    # Check for duplicate key combinations
+    # Check for duplicate key combinations.
+    # When allow_new=True, only fully-specified rows (all key cols non-blank) are checked in the
+    # target, since blank key columns indicate new records whose IDs will be assigned by REDCap.
     _check_no_duplicate_keys(source_df, key_cols, "Source")
-    _check_no_duplicate_keys(target_df, key_cols, "Target")
+    _check_no_duplicate_keys(
+        target_df, key_cols, "Target", fully_specified_only=allow_new
+    )
 
     # Handle different cases based on allow_new
     if allow_new:
@@ -115,9 +119,23 @@ def _key_columns_match(
     )
 
 
-def _check_no_duplicate_keys(df: pl.DataFrame, key_cols: list[str], label: str) -> None:
-    """Raise ValueError if the DataFrame has duplicate key combinations."""
-    if df.select(key_cols).is_duplicated().any():
+def _check_no_duplicate_keys(
+    df: pl.DataFrame,
+    key_cols: list[str],
+    label: str,
+    fully_specified_only: bool = False,
+) -> None:
+    """Raise ValueError if the DataFrame has duplicate key combinations.
+
+    When fully_specified_only=True, only rows where every key column is non-blank
+    are checked. This allows rows with blank key columns (new records whose IDs
+    will be assigned by REDCap) to appear multiple times.
+    """
+    check_df = df
+    if fully_specified_only:
+        mask = pl.all_horizontal([pl.col(c).cast(pl.String) != "" for c in key_cols])
+        check_df = df.filter(mask)
+    if check_df.select(key_cols).is_duplicated().any():
         raise ValueError(f"{label} DataFrame has duplicate key combinations")
 
 
