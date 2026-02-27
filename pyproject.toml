@@ -29,6 +29,7 @@ dependencies = [
     "docopt-ng>=0.9.0",
     "polars>=1.36.1",
     "pycap",
+    "urllib3>=2.6.3,<3.0.0",
 ]
 
 
