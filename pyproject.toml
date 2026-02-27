@@ -5,7 +5,7 @@ build-backend = "uv_build"
 [project]
 name = "redcap_toolbox"
 requires-python = ">= 3.10"
-version = "2026.02.23"
+version = "2026.02.27"
 authors = [
     { name="Nate Vack", email="njvack@wisc.edu"},
     { name="Stuti Shrivastava", email="sshrivastav6@wisc.edu" },
