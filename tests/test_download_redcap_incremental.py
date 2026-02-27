@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
 import polars as pl
 import pytest
@@ -163,9 +164,6 @@ def test_merge_longitudinal_keys_only_matching_event_updated():
 # ---------------------------------------------------------------------------
 # run()
 # ---------------------------------------------------------------------------
-
-
-from unittest.mock import patch
 
 
 @patch("redcap_toolbox.download_redcap_incremental.export_records")

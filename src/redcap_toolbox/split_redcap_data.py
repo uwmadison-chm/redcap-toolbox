@@ -37,10 +37,8 @@ Options:
 """
 
 import logging
-import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
 
 import docopt
 import polars as pl

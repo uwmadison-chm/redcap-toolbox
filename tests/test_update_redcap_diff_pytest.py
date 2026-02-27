@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
-import importlib
 import pytest
 import tempfile
 import os
 import polars as pl
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from src.redcap_toolbox.update_redcap_diff import update_redcap_diff, main
 

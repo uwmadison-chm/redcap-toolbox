@@ -28,7 +28,6 @@ from typing import Any
 import traceback
 
 import docopt
-import polars as pl
 import redcap
 import redcap_toolbox.minchange
 from redcap_toolbox.csv_utils import key_cols_for, read_csv
