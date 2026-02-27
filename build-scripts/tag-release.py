@@ -14,9 +14,9 @@ import sys
 
 def main():
     with open("pyproject.toml", "rb") as f:
-        version = tomllib.load(f)["project"]["version"]
+        version = str(tomllib.load(f)["project"]["version"])
 
-    tag = f"v{version}"
+    tag = version
 
     # Check if tag already exists
     result = subprocess.run(["git", "tag", "-l", tag], capture_output=True, text=True)
