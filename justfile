@@ -23,5 +23,5 @@ ensure-git-clean:
     fi
 
 publish: ty lint test ensure-git-clean
-    echo "Hello there let's publish
+    .venv/bin/python build-scripts/tag-release.py
 
