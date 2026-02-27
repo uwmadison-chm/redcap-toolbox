@@ -28,6 +28,7 @@ def make_df(data: dict) -> pl.DataFrame:
 SIMPLE_CSV = "record_id,field1\n1,a\n2,b\n"
 UPDATED_CSV = "record_id,field1\n2,updated\n3,new\n"
 EMPTY_CSV = "record_id,field1\n"
+TRULY_EMPTY_CSV = ""
 
 
 @pytest.fixture
@@ -173,7 +174,7 @@ def test_first_run_creates_incremental_dir_and_files(mock_export, output_file):
 
     inc_dir = output_file.parent / ".incremental"
     assert (inc_dir / "base.csv").exists()
-    assert (inc_dir / ".last_download").exists()
+    assert (inc_dir / "last_download").exists()
 
 
 @patch("redcap_toolbox.download_redcap_incremental.export_records")
@@ -250,13 +251,25 @@ def test_second_run_no_new_records_preserves_output(mock_export, output_file):
 
 
 @patch("redcap_toolbox.download_redcap_incremental.export_records")
+def test_second_run_truly_empty_response_preserves_output(mock_export, output_file):
+    mock_export.return_value = SIMPLE_CSV
+    run(output_file, overlap=timedelta(hours=24))
+
+    mock_export.return_value = TRULY_EMPTY_CSV
+    run(output_file, overlap=timedelta(hours=24))
+
+    df = read_csv(output_file)
+    assert len(df) == 2
+
+
+@patch("redcap_toolbox.download_redcap_incremental.export_records")
 def test_timestamp_is_recorded_before_download(mock_export, output_file):
     before = datetime.now().astimezone()
     mock_export.return_value = SIMPLE_CSV
     run(output_file, overlap=timedelta(hours=24))
     after = datetime.now().astimezone()
 
-    ts_text = (output_file.parent / ".incremental" / ".last_download").read_text()
+    ts_text = (output_file.parent / ".incremental" / "last_download").read_text()
     ts = datetime.fromisoformat(ts_text)
     assert before <= ts <= after
 
@@ -265,7 +278,7 @@ def test_timestamp_is_recorded_before_download(mock_export, output_file):
 def test_timestamp_updated_after_second_run(mock_export, output_file):
     mock_export.return_value = SIMPLE_CSV
     run(output_file, overlap=timedelta(hours=24))
-    ts_file = output_file.parent / ".incremental" / ".last_download"
+    ts_file = output_file.parent / ".incremental" / "last_download"
     first_ts = datetime.fromisoformat(ts_file.read_text())
 
     mock_export.return_value = EMPTY_CSV

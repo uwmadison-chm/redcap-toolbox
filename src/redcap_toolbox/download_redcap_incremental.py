@@ -10,7 +10,7 @@ Relies on REDCAP_API_URL and REDCAP_API_TOKEN environment variables.
 Incremental state is stored alongside <output_file> in a .incremental/
 directory:
   .incremental/base.csv        - Accumulated full dataset
-  .incremental/.last_download  - Timestamp of last successful download
+  .incremental/last_download  - Timestamp of last successful download
 
 To force a full re-download, delete the .incremental/ directory.
 
@@ -77,7 +77,7 @@ def base_file(output_file: Path) -> Path:
 
 
 def timestamp_file(output_file: Path) -> Path:
-    return incremental_dir(output_file) / ".last_download"
+    return incremental_dir(output_file) / "last_download"
 
 
 def read_timestamp(output_file: Path) -> datetime | None:
@@ -134,16 +134,19 @@ def run(output_file: Path, overlap: timedelta, tz: ZoneInfo | None = None) -> No
             f"(overlap: {overlap})."
         )
         raw = export_records(date_begin=date_begin)
-        inc_df = read_csv(raw.encode())
 
-        if inc_df.is_empty():
+        if not raw or not raw.strip():
             logger.info("No new records found.")
         else:
-            logger.info(f"Merging {len(inc_df)} incremental rows into base.")
-            base_df = read_csv(base_file(output_file))
-            merged = merge(base_df, inc_df)
-            merged.write_csv(base_file(output_file))
-            logger.info(f"Merge complete; {len(merged)} total rows.")
+            inc_df = read_csv(raw.encode())
+            if inc_df.is_empty():
+                logger.info("No new records found.")
+            else:
+                logger.info(f"Merging {len(inc_df)} incremental rows into base.")
+                base_df = read_csv(base_file(output_file))
+                merged = merge(base_df, inc_df)
+                merged.write_csv(base_file(output_file))
+                logger.info(f"Merge complete; {len(merged)} total rows.")
 
     write_timestamp(output_file, download_start)
     shutil.copy2(base_file(output_file), output_file)

@@ -45,7 +45,7 @@ On the first run it downloads everything; on subsequent runs it fetches only rec
 Incremental state is stored in a `.incremental/` directory alongside the output file:
 ```
 .incremental/base.csv        - Accumulated full dataset
-.incremental/.last_download  - Timestamp of last successful download
+.incremental/last_download  - Timestamp of last successful download
 ```
 
 To force a full re-download, delete the `.incremental/` directory.
