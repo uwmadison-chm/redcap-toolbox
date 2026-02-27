@@ -16,7 +16,7 @@ redcap-toolbox is available on PyPI:
 $ pip install redcap-toolbox
 ```
 
-redcap-toolbox officially supports Python 3.8+.
+redcap-toolbox officially supports Python 3.10+.
 
 ## Getting started
 
@@ -35,6 +35,30 @@ An example call might look like this:
 `download_redcap --survey-fields --forms get_forms.csv source_data/full_data.csv`
 
 which will download the data set with only the forms defined in the `get_forms.csv` with timestamps
+
+### Downloading data incrementally
+
+`download_redcap_incremental` is useful when you want to keep a local copy up to date without re-downloading the full dataset each time. Exporting the entirety of large datasets (we have one that is upwards of 150M) causes substantial load on the server -- not great when the vast majority of that data is rows that haven't changed since your last export.
+
+On the first run it downloads everything; on subsequent runs it fetches only records changed since the last run and merges them in.
+
+Incremental state is stored in a `.incremental/` directory alongside the output file:
+```
+.incremental/base.csv        - Accumulated full dataset
+.incremental/.last_download  - Timestamp of last successful download
+```
+
+To force a full re-download, delete the `.incremental/` directory.
+
+Options:
+* `--overlap=<duration>` — overlap window for missed-change protection (default: `24h`).
+  Accepts `60s`, `5m`, `24h`, `3d`, or a bare number of seconds.
+* `--tz=<tz>` — timezone for timestamps, e.g. `America/Chicago` (default: local time)
+* `-v / --verbose` — print progress messages
+
+An example call might look like this:
+
+`download_redcap_incremental --overlap=1h source_data/full_data.csv`
 
 ### Downloading reports
 
@@ -61,7 +85,7 @@ which will save all the reports for IDs listed in the `report_ids.csv` file in t
 
 ### Splitting REDCap data into event files
 
-* Use `split_redcap_data` to split the REDCap CSV file into:
+* Use `split_redcap_data` to split the data downloaded using `download_redcap`:
     * A file for each event
     * A file for repeated instruments in events where they happen
 
