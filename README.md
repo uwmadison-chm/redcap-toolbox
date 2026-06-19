@@ -141,6 +141,29 @@ An example call might look like this:
 
 where the `_cache.csv` file contains the changes made to the original data file.
 
+### Building the updated file from patch CSVs
+
+`patch_redcap_csv` builds the updated/cache file for `update_redcap_diff` by applying one or more sparse "patch" CSVs to a base export. Each patch only needs the key columns plus the field(s) it changes, so the scripts that generate updates can stay simple — they declare *what* to change and let this tool find the right rows.
+
+Every patch must carry all of the base's key columns (`record_id`, plus whichever of `redcap_event_name`, `redcap_repeat_instrument`, `redcap_repeat_instance` are present in the base) so each row uniquely identifies the data it touches. For non-repeating data, leave the repeat columns blank. For a column that is present in a patch: a value sets the cell, a blank clears it (matching `update_redcap_diff`), and a column absent from the patch is left untouched.
+
+Patches are applied left-to-right, last write wins. The result is written to stdout, or to `--output`.
+
+Options:
+* `--allow-new` — permit patches to introduce keys not present in the base (otherwise an unknown key is an error).
+* `--extra-cols=<mode>` — how to handle patch columns absent from the base: `error` (default), `warn`, or `allow`.
+* `--cell-conflicts=<mode>` — how to handle a cell written by more than one patch with differing values: `error`, `warn` (default), or `allow`.
+
+An example call might look like this:
+
+`patch_redcap_csv base.csv wearables.csv compliance.csv -o updated.csv`
+
+then feed the result to `update_redcap_diff`:
+
+`update_redcap_diff --dry-run base.csv updated.csv`
+
+See `examples/patch_redcap_csv/` for runnable sample data.
+
 ## Credits
 
 `redcap-toolbox` was written by Nate Vack <njvack@wisc.edu>, with features added by Nicholas

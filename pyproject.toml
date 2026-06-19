@@ -1,11 +1,12 @@
 [build-system]
-requires = ["uv_build>=0.9.17,<0.10.0"]
+requires = ["uv_build>=0.11.0,<0.12.0"]
 build-backend = "uv_build"
 
 [project]
 name = "redcap_toolbox"
 requires-python = ">= 3.10"
-version = "2026.02.27.4"
+version = "2026.06.19"
+license = "MIT"
 authors = [
     { name="Nate Vack", email="njvack@wisc.edu"},
     { name="Stuti Shrivastava", email="sshrivastav6@wisc.edu" },
@@ -20,7 +21,6 @@ readme = "README.md"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
@@ -43,12 +43,14 @@ split_redcap_data = "redcap_toolbox.split_redcap_data:main"
 update_redcap_diff = "redcap_toolbox.update_redcap_diff:main"
 download_redcap_report = "redcap_toolbox.download_redcap_report:main"
 download_redcap_incremental = "redcap_toolbox.download_redcap_incremental:main"
+patch_redcap_csv = "redcap_toolbox.patch_redcap_csv:main"
 
 [dependency-groups]
 dev = [
     "pluggy>=1.6.0",
     "pytest>=8.4.1",
     "ruff>=0.12.2",
+    "rust-just>=1.53.0",
     "ty>=0.0.2",
 ]
 

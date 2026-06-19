@@ -1,0 +1,5 @@
+record_id,redcap_event_name,redcap_repeat_instrument,redcap_repeat_instance,field1,field2,field3
+1,scr_arm_1,,,a,d,10
+2,scr_arm_1,,,b,e,20
+2,pre_arm_1,,,c,f,30
+2,pre_arm_1,vitals,1,,,
