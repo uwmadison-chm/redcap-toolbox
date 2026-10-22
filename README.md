@@ -38,17 +38,21 @@ which will download the data set with only the forms defined in the `get_forms.c
 
 ### Downloading data incrementally
 
-`download_redcap_incremental` is useful when you want to keep a local copy up to date without re-downloading the full dataset each time. Exporting the entirety of large datasets (we have one that is upwards of 150M) causes substantial load on the server -- not great when the vast majority of that data is rows that haven't changed since your last export.
+* When you want to keep a local copy up to date without re-downloading the full dataset each time, you should use `download_redcap_incremental`. Exporting the entirety of large datasets (we have one that is upwards of 150M) causes substantial load on the server -- not great when the vast majority of that data is rows that haven't changed since your last export.
 
-On the first run it downloads everything; on subsequent runs it fetches only records changed since the last run and merges them in.
+* On the first run it downloads everything; on subsequent runs it fetches only records changed since the last run and merges them in.
 
-Incremental state is stored in a `.incremental/` directory alongside the output file:
-```
-.incremental/base.csv        - Accumulated full dataset
-.incremental/last_download  - Timestamp of last successful download
-```
+* Incremental state is stored in a `.incremental/` directory alongside the output file:
+  ```
+  .incremental/base.csv        - Accumulated full dataset
+  .incremental/last_download  - Timestamp of last successful download
+  ```
 
-To force a full re-download, delete the `.incremental/` directory.
+* To force a full re-download, delete the `.incremental/` directory.
+
+An example call might look like this:
+
+`download_redcap_incremental --overlap=1h source_data/full_data.csv`
 
 Options:
 * `--overlap=<duration>` — overlap window for missed-change protection (default: `24h`).
@@ -56,32 +60,39 @@ Options:
 * `--tz=<tz>` — timezone for timestamps, e.g. `America/Chicago` (default: local time)
 * `-v / --verbose` — print progress messages
 
+
+### Obtaining REDCap data event files
+
+* Use `download_redcap_event` to get the event mapping and the instrument-event mapping files.
+
+* So, if your data has events 'scr', 'pre', and 'post', and 'pre' and 'post'
+  each have a repeated instrument called 'meds', you can expect the output files to like this:
+  ``` 
+  File: StudyName_event_map.csv
+  event_name | arm_num | unique_event_name | custom_event_label | event_id
+  scr        | 1       | scr_arm_1         |                    | 12345
+  pre        | 1       | pre_arm_1         |                    | 12346
+  post       | 1       | post_arm_1        |                    | 12347
+  ```
+
+  ``` 
+  File: StudyName_repeating_event_map.csv
+  event_name | form_name | custom_form_label
+  scr_arm_1  |           | 
+  pre_arm_1  | meds      | 
+  post_arm_1 | meds      |
+  ```
 An example call might look like this:
 
-`download_redcap_incremental --overlap=1h source_data/full_data.csv`
+`download_redcap_event --prefix StudyName source_data_config`
 
-### Downloading reports
-
-* Reports can be downloaded using `download_redcap_report` with either a list of report IDs separated by commas or a
-  file with list of report IDs, one per line.
-* Use the `--prefix` flag, to specify the prefix to be added for the filenames. Default is `redcap`.
-
-An example call might look like this:
-
-`download_redcap_report --file report_ids.csv --prefix StudyName report_data`
-
-or
-
-`download_redcap_report --id 32001,32004 --prefix StudyName report_data`
-
-which will save all the reports for IDs listed in the `report_ids.csv` file in the `report_data` directory.
-
-* The output report filenames will look like this:
-  ```
-  report_data
-  ├── StudyName__report_32001.csv
-  └── StudyName__report_32004.csv
-  ```
+where the event and mapping files will be saved in the `source_data_config` directory with the prefix `StudyName` 
+added to them. Example:
+```
+source_data_config
+├── StudyName_event_map.csv
+└── StudyName_repeating_event_map.csv
+```
 
 ### Splitting REDCap data into event files
 
@@ -89,35 +100,15 @@ which will save all the reports for IDs listed in the `report_ids.csv` file in t
     * A file for each event
     * A file for repeated instruments in events where they happen
 
-* So, if your data has events 'scr', 'pre', and 'post', and 'pre' and 'post'
-  each have a repeated instrument called 'meds', you can expect the output files to like this:
-  ```
-  ├── redcap__scr.csv
-  ├── redcap__pre.csv
-  ├── redcap__pre__meds.csv
-  ├── redcap__post.csv
-  ├── redcap__post.csv
-  └── redcap__post__meds.csv
-  ```
-
-* In addition, if you don't like the whole _arm_1 appended to your event names
-  (who does like that?) or you're using events to denote arms and want all your
-  event's data together, you can use the event_map file for this. That file
-  should be a CSV file and contain the columns 'redcap_event' and 'filename_event'
-
-    * Example event maps might look like:
-      ```
-      scr__all_arm_1,scr
-      pre__control_arm_1,pre
-      pre__intervention_arm_1,pre
-      ```
-
 An example call might look like this:
 
-`split_redcap_data --event-map=event_map.csv --prefix StudyName --no-condense source_data/full_data.csv source_data`
+`split_redcap_data --event-map=source_data_config/StudyName_event_map.csv --prefix StudyName --no-condense source_data/full_data.csv source_data`
 
 where the split event files will be saved in the `source_data` directory as well with the prefix `StudyName` added to
-them.
+them. 
+* So, if your data has events 'scr', 'pre', and 'post', and 'pre' and 'post'
+  each have a repeated instrument called 'meds', you can expect the output files to like this:
+
 
 ```
 source_data
@@ -143,26 +134,50 @@ where the `_cache.csv` file contains the changes made to the original data file.
 
 ### Building the updated file from patch CSVs
 
-`patch_redcap_csv` builds the updated/cache file for `update_redcap_diff` by applying one or more sparse "patch" CSVs to a base export. Each patch only needs the key columns plus the field(s) it changes, so the scripts that generate updates can stay simple — they declare *what* to change and let this tool find the right rows.
+* `patch_redcap_csv` builds the updated/cache file for `update_redcap_diff` by applying one or more sparse "patch" CSVs to a base export. Each patch only needs the key columns plus the field(s) it changes, so the scripts that generate updates can stay simple — they declare *what* to change and let this tool find the right rows.
 
-Every patch must carry all of the base's key columns (`record_id`, plus whichever of `redcap_event_name`, `redcap_repeat_instrument`, `redcap_repeat_instance` are present in the base) so each row uniquely identifies the data it touches. For non-repeating data, leave the repeat columns blank. For a column that is present in a patch: a value sets the cell, a blank clears it (matching `update_redcap_diff`), and a column absent from the patch is left untouched.
+* Every patch must carry all of the base's key columns (`record_id`, plus whichever of `redcap_event_name`, `redcap_repeat_instrument`, `redcap_repeat_instance` are present in the base) so each row uniquely identifies the data it touches. For non-repeating data, leave the repeat columns blank. For a column that is present in a patch: a value sets the cell, a blank clears it (matching `update_redcap_diff`), and a column absent from the patch is left untouched.
 
-Patches are applied left-to-right, last write wins. The result is written to stdout, or to `--output`.
+* Patches are applied left-to-right, last write wins. The result is written to stdout, or to `--output`.
+
+An example call might look like this:
+
+`patch_redcap_csv base.csv wearables.csv compliance.csv -o updated.csv`
 
 Options:
 * `--allow-new` — permit patches to introduce keys not present in the base (otherwise an unknown key is an error).
 * `--extra-cols=<mode>` — how to handle patch columns absent from the base: `error` (default), `warn`, or `allow`.
 * `--cell-conflicts=<mode>` — how to handle a cell written by more than one patch with differing values: `error`, `warn` (default), or `allow`.
 
-An example call might look like this:
-
-`patch_redcap_csv base.csv wearables.csv compliance.csv -o updated.csv`
-
-then feed the result to `update_redcap_diff`:
+Then, feed the result to `update_redcap_diff`:
 
 `update_redcap_diff --dry-run base.csv updated.csv`
 
 See `examples/patch_redcap_csv/` for runnable sample data.
+
+
+### Downloading reports
+
+* Reports can be downloaded using `download_redcap_report` with either a list of report IDs separated by commas or a
+  file with list of report IDs, one per line.
+* Use the `--prefix` flag, to specify the prefix to be added for the filenames. Default is `redcap`.
+
+An example call might look like this:
+
+`download_redcap_report --file report_ids.csv --prefix StudyName report_data`
+
+or
+
+`download_redcap_report --id 32001,32004 --prefix StudyName report_data`
+
+which will save all the reports for IDs listed in the `report_ids.csv` file in the `report_data` directory.
+
+* The output report filenames will look like this:
+  ```
+  report_data
+  ├── StudyName__report_32001.csv
+  └── StudyName__report_32004.csv
+  ```
 
 ## Credits
 
