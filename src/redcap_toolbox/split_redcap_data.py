@@ -15,25 +15,17 @@ redcap__pre__meds.csv
 redcap__post.csv
 redcap__post__meds.csv
 
-In addition, if you don't like the whole _arm_1 appended to your event names
-(who does like that?) or you're using events to denote arms and want all your
-event's data together, you can use the event_map file for this. That file
-should be a CSV file and contain the columns 'redcap_event' and 'filename_event'
-
-Example event maps might look like:
-scr__all_arm_1,scr
-pre__control_arm_1,pre
-pre__intervention_arm_1,pre
+The event file is downloaded from the REDCap project using download_redcap_events
 
 Usage:
   split_redcap_data.py [options] <input_file> <output_directory>
 
 Options:
-  --event-map=<event_file>  A file mapping redcap events to file events
-  --prefix=<prefix>         A filename prefix for the output [default: redcap]
-  --no-condense             Don't filter empty rows, columns and files
-  -h --help                 Show this screen
-  -d --debug                Print debugging output
+  --event-map=<event_file>    A file mapping redcap events to file events
+  --prefix=<prefix>           A filename prefix for the output [default: redcap]
+  --no-condense               Don't filter empty rows, columns and files
+  -h --help                   Show this screen
+  -d --debug                  Print debugging output
 """
 
 import logging
@@ -53,7 +45,7 @@ def make_event_map(mapping_file: str | None) -> dict[str, str]:
     if mapping_file is None:
         return {}
     map_df = read_csv(mapping_file)
-    event_map = dict(zip(map_df["redcap_event"], map_df["filename_event"]))
+    event_map = dict(zip(map_df["unique_event_name"], map_df["event_name"]))
     return event_map
 
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Download the reports in a REDCap study to a CSV files. Takes in either a CSV
-file with a list of report IDs, one per line, or a list of report IDs seperated
+Download the reports in a REDCap study to a CSV file. Takes in either a CSV
+file with a list of report IDs, one per line, or a list of report IDs separated
 by commas.
 
 If your report IDs look like: 32001, 32004 with no prefix provided, the output report filenames
@@ -55,6 +55,12 @@ def file_to_list(filename: str) -> list[str]:
     return out
 
 
+def parse_report_ids(raw_ids: list[str]) -> list[str]:
+    return [
+        rid.strip() for raw in raw_ids for rid in str(raw).split(",") if rid.strip()
+    ]
+
+
 def download_redcap_report(
     report_ids: list[str], out_dir: Path, prefix: str, verbose: bool
 ) -> None:
@@ -66,7 +72,7 @@ def download_redcap_report(
             with open(out_file, "w", encoding="utf8") as f:
                 f.write(data)
                 logger.info(f"Report {rep_id} downloaded to {out_file}")
-        except RequestException as e:
+        except (ValueError, RequestException) as e:
             logger.warning(e)
             logger.warning(f"Report {rep_id} not found! Skipping ...")
             if verbose:
@@ -99,7 +105,7 @@ def main() -> None:
     if args["--file"]:
         report_ids = file_to_list(args["--file"])
     elif args["--id"]:
-        report_ids = [str(rep_id) for rep_id in args["--id"]]
+        report_ids = parse_report_ids(args["--id"])
     else:
         raise ValueError("No report IDs provided!")
     logger.debug(f"Report IDs: {report_ids}")
