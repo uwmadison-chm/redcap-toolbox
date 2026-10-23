@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-Download the data for a REDCap study to a CSV files. Optionally takes a
-filename with a list of forms to skip from the download, one per line.
+Download the data for a REDCap study to a CSV file. Optionally takes a
+filename with a list of forms to only download the specific forms, one per line.
 
 Relies on the environment variables REDCAP_API_URL and REDCAP_API_TOKEN.
 
@@ -41,6 +41,7 @@ def file_to_list(filename: str) -> list[str]:
     out = []
     with open(filename) as f:
         out = [line.strip() for line in f.readlines()]
+    out = [str(line) for line in out if line != ""]
     return out
 
 

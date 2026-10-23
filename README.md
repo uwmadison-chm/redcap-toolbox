@@ -63,10 +63,10 @@ Options:
 
 ### Obtaining REDCap data event files
 
-* Use `download_redcap_event` to get the event mapping and the instrument-event mapping files.
+* Use `download_redcap_events` to get the event mapping and the instrument-event mapping files.
 
 * So, if your data has events 'scr', 'pre', and 'post', and 'pre' and 'post'
-  each have a repeated instrument called 'meds', you can expect the output files to like this:
+  each have a repeated instrument called 'meds', you can expect the output files to look like this:
   ``` 
   File: StudyName_event_map.csv
   event_name | arm_num | unique_event_name | custom_event_label | event_id
@@ -78,20 +78,18 @@ Options:
   ``` 
   File: StudyName_repeating_event_map.csv
   event_name | form_name | custom_form_label
-  scr_arm_1  |           | 
   pre_arm_1  | meds      | 
   post_arm_1 | meds      |
   ```
 An example call might look like this:
 
-`download_redcap_event --prefix StudyName source_data_config`
+`download_redcap_events --prefix StudyName source_data_config`
 
-where the event and mapping files will be saved in the `source_data_config` directory with the prefix `StudyName` 
-added to them. Example:
+where the event and mapping files will be saved in the `source_data_config` directory with the prefix `StudyName` added. Example:
 ```
 source_data_config
-├── StudyName_event_map.csv
-└── StudyName_repeating_event_map.csv
+├── StudyName__event_map.csv
+└── StudyName__repeating_event_map.csv
 ```
 
 ### Splitting REDCap data into event files
@@ -102,10 +100,10 @@ source_data_config
 
 An example call might look like this:
 
-`split_redcap_data --event-map=source_data_config/StudyName_event_map.csv --prefix StudyName --no-condense source_data/full_data.csv source_data`
+`split_redcap_data --event-map=source_data_config/StudyName__event_map.csv --prefix StudyName --no-condense source_data/full_data.csv source_data`
 
-where the split event files will be saved in the `source_data` directory as well with the prefix `StudyName` added to
-them. 
+where the split event files will be saved in the `source_data` directory as well with the prefix `StudyName` added.
+
 * So, if your data has events 'scr', 'pre', and 'post', and 'pre' and 'post'
   each have a repeated instrument called 'meds', you can expect the output files to like this:
 
@@ -115,22 +113,30 @@ source_data
 ├── full_data.csv
 ├── StudyName__scr.csv
 ├── StudyName__pre.csv
-├── StudyName__pre_meds.csv
+├── StudyName__pre__meds.csv
 ├── StudyName__post.csv
-└── StudyName__post_meds.csv
+└── StudyName__post__meds.csv
 ```
 
 ### Update records in REDCap
 
 * Update the REDCap database with the minimum changes needed to make the system in sync.
-* It is important that the updated data file has the same number of rows and columns as the original data file.
-* This functionality is especially useful when updating the record information for Tracking purposes.
+* Allow for background import process in REDCap and batch uploads for larger imports.
 
 An example call might look like this:
 
 `update_redcap_diff StudyName__scr.csv StudyName__scr_cache.csv`
 
 where the `_cache.csv` file contains the changes made to the original data file.
+
+Options:
+* `--allow-new` allows adding new rows to REDCap.
+* `--background` enables the use of background import mode 
+* `--batch-size=<N>` sets the limits on the batch size to N rows.
+* `--max-records N` this will cause an exit with error if update exceeds N rows; 0 disables limit. The default is set to `1000`.
+* `--strict-cols` requires updated CSV columns to exactly match base CSV columns.
+* `-v / --verbose` — print progress messages
+
 
 ### Building the updated file from patch CSVs
 

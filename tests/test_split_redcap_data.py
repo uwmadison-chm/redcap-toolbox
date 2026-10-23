@@ -23,8 +23,11 @@ def event_df():
     """
     return pl.DataFrame(
         {
-            "redcap_event": ["scr_arm_1", "pre_arm_1", "post_arm_1"],
-            "filename_event": ["scr", "pre", "post"],
+            "event_name": ["scr", "pre", "post"],
+            "arm_num": ["1", "1", "1"],
+            "unique_event_name": ["scr_arm_1", "pre_arm_1", "post_arm_1"],
+            "custom_event_label": ["", "", ""],
+            "event_id": ["12345", "12346", "12347"],
         }
     )
 

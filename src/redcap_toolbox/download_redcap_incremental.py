@@ -102,10 +102,10 @@ def merge(base_df: pl.DataFrame, inc_df: pl.DataFrame) -> pl.DataFrame:
     dropped = set(base_df.columns) - set(inc_df.columns)
     if dropped:
         raise ValueError(
-            "Incremental download is missing columns present in base:\n"
-            "{sorted(dropped)}.\n"
-            "You could lose data! Investigate what's going on, and fix it or delete\n"
-            ".incremental/ to start fresh."
+            f"Incremental download is missing columns present in base:\n"
+            f"{sorted(dropped)}.\n"
+            f"You could lose data! Investigate what's going on, and fix it or delete\n"
+            f".incremental/ to start fresh."
         )
     key_cols = key_cols_for(inc_df)
     combined = pl.concat([base_df, inc_df], how="diagonal").fill_null("")

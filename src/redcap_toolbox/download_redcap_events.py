@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 
 """
-Download the events in a REDCap study to a CSV file.
+Download the events in a REDCap study to a configuration directory.
+Two files are saved with provided prefix like StudyName or "redcap" if none provided.
+ - <prefix>__event_map.csv
+ - <prefix>__repeating_event_map.csv
 
 Relies on the environment variables REDCAP_API_URL and REDCAP_API_TOKEN.
 
 Written by Stuti Shrivastava <sshrivastav6@wisc.edu>
 
 Usage:
-  download_redcap_events.py [options] <output_file>
+  download_redcap_events.py [options] <out_dir>
   download_redcap_events.py -h | --help
 
 Options:
@@ -37,32 +40,26 @@ API_URL: str | None = None
 API_TOK: str | None = None
 PROJ: Any = None
 
-
-def file_to_list(filename: str) -> list[str]:
-    out = []
-    with open(filename) as f:
-        out = [line.strip() for line in f.readlines()]
-    out = [str(rep_id) for rep_id in out if rep_id != ""]
-    return out
+EVENT_MAP_SUFFIX = "__event_map.csv"
+REPEATING_EVENT_MAP_SUFFIX = "__repeating_event_map.csv"
 
 
-def download_redcap_events(
-    out_file: Path, prefix: str, verbose: bool
-) -> None:
-
+def download_redcap_events(output_dir: Path, prefix_str: str, verbose: bool) -> None:
     try:
-        logger.debug(f"Downloading events mapping file... ")
+        logger.debug("Downloading events mapping file... ")
         data = PROJ.export_events(format_type="csv")
         logger.debug(f"Event map {data}")
+        out_file = output_dir.joinpath(f"{prefix_str}{EVENT_MAP_SUFFIX}")
+
         with open(out_file, "w", encoding="utf8") as f:
             f.write(data)
             logger.info(f"Events map saved to {out_file}")
 
-        logger.debug(f"Downloading events intrument mapping file... ")
+        logger.debug("Downloading events instrument mapping file... ")
         data_rep = PROJ.export_repeating_instruments_events(format_type="csv")
-        rep_name = out_file.name.replace("event", "repeating_event")
-        rep_file = out_file.parent.joinpath(rep_name)
-        logger.debug(f"Event map {data_rep} ")
+        rep_file = output_dir.joinpath(f"{prefix_str}{REPEATING_EVENT_MAP_SUFFIX}")
+        logger.debug(f"Repeating instrument to event map {data_rep} ")
+
         with open(rep_file, "w", encoding="utf8") as f:
             f.write(data_rep)
             logger.info(f"Repeating instruments to events map saved to {rep_file}")
@@ -71,6 +68,7 @@ def download_redcap_events(
         logger.warning(e)
         if verbose:
             logger.warning(traceback.format_exc())
+        sys.exit(1)
 
 
 def main() -> None:
@@ -89,15 +87,12 @@ def main() -> None:
         logger.error("REDCAP_API_URL and REDCAP_API_TOKEN must both be set!")
         sys.exit(1)
 
-    output_file = Path(args["<output_file>"])
-    out_dir = output_file.parent
+    out_dir = Path(args["<out_dir>"])
     if not out_dir.is_dir():
-        logger.debug(
-            f"Output directory {out_dir} does not exist! Making directory ..."
-        )
+        logger.debug(f"Output directory {out_dir} does not exist! Making directory ...")
         out_dir.mkdir(parents=True, exist_ok=True)
 
-    download_redcap_events(output_file, args["--prefix"], args["--debug"])
+    download_redcap_events(out_dir, args["--prefix"], args["--debug"])
 
 
 if __name__ == "__main__":
