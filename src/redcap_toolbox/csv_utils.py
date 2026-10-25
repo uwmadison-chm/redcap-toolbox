@@ -12,11 +12,8 @@ REDCAP_KEY_COLS = [
 
 def read_csv(source: str | Path | bytes) -> pl.DataFrame:
     """Read a CSV file, keeping all columns as strings and empty fields as empty strings."""
-    return pl.read_csv(
-        source,
-        infer_schema_length=0,
-        missing_utf8_is_empty_string=True,
-    )
+    df = pl.read_csv(source, infer_schema_length=0)
+    return df.with_columns(pl.all().fill_null(""))
 
 
 def key_cols_for(df: pl.DataFrame) -> list[str]:
