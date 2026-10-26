@@ -34,6 +34,7 @@ from pathlib import Path
 
 import docopt
 import polars as pl
+
 from redcap_toolbox.csv_utils import read_csv
 
 logging.basicConfig(format="%(message)s")

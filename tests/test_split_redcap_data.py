@@ -7,10 +7,10 @@ import polars as pl
 import pytest
 
 from src.redcap_toolbox.split_redcap_data import (
-    make_event_map,
     combine_names,
-    split_data,
     condense_df,
+    make_event_map,
+    split_data,
     split_redcap_data,
 )
 from tests.dataframe_factory import create_standard_df

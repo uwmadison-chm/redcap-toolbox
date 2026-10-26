@@ -24,11 +24,12 @@ Options:
 import logging
 import os
 import sys
-from typing import Any
 import traceback
+from typing import Any
 
 import docopt
 import redcap
+
 import redcap_toolbox.minchange
 from redcap_toolbox.csv_utils import key_cols_for, read_csv
 
@@ -172,6 +173,7 @@ def main() -> int:
         return EXIT_ERROR
     except Exception as e:
         logger.error(f"Error importing records: {e}")
+        logger.exception("Error importing records")
         logger.error(traceback.format_exc())
         return EXIT_ERROR
     return EXIT_OK

@@ -171,7 +171,7 @@ def _create_new_row_dict(
 
     # Add non-blank value columns
     for col_name, value in row_dict.items():
-        if col_name not in key_cols:
+        if col_name not in key_cols:  # noqa: SIM102
             if value != "" and value is not None:
                 result[col_name] = value
 

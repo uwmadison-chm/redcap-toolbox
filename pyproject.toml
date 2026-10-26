@@ -28,7 +28,7 @@ classifiers = [
 dependencies = [
     "docopt-ng>=0.9.0",
     "polars>=1.36.1",
-    "pycap",
+    "pycap>=2.7.0",
     "urllib3>=2.6.3,<3.0.0",
 ]
 
@@ -61,3 +61,6 @@ pycap = { url = "https://github.com/uwmadison-chm/PyCap/archive/refs/tags/2.7.1-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+[tool.ruff.lint.per-file-ignores]
+"build-scripts/*" = ["N999"]

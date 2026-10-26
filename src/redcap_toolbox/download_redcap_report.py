@@ -50,7 +50,7 @@ PROJ: Any = None
 def file_to_list(filename: str) -> list[str]:
     out = []
     with open(filename) as f:
-        out = [line.strip() for line in f.readlines()]
+        out = [line.strip() for line in f]
     out = [str(rep_id) for rep_id in out if rep_id != ""]
     return out
 

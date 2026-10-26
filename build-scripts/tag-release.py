@@ -6,10 +6,10 @@ Get the version from pyproject.toml, add a tag with it, push it.
 Raises an error if the tag already exists.
 """
 
-# tomllib was added in 3.11, we support 3.10, you'll release with something new
-import tomllib  # ty: ignore
 import subprocess
 import sys
+
+import tomllib  # ty: ignore  # tomllib was added in 3.11, we support 3.10, you'll release with something new
 
 
 def main():
@@ -19,7 +19,9 @@ def main():
     tag = version
 
     # Check if tag already exists
-    result = subprocess.run(["git", "tag", "-l", tag], capture_output=True, text=True)
+    result = subprocess.run(
+        ["git", "tag", "-l", tag], capture_output=True, text=True, check=False
+    )
     if tag in result.stdout.strip().splitlines():
         print(f"Tag {tag} already exists. Use -f to force update.")
         if "-f" not in sys.argv:

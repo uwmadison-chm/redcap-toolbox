@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
-import pytest
-import tempfile
 import os
-import polars as pl
+import tempfile
 from unittest.mock import patch
 
-from src.redcap_toolbox.update_redcap_diff import update_redcap_diff, main
+import polars as pl
+import pytest
+
+from src.redcap_toolbox.update_redcap_diff import main, update_redcap_diff
 
 
 @pytest.fixture
