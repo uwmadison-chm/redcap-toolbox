@@ -21,7 +21,10 @@ Options:
     -o --output FILE       Write the result here (default: stdout).
     --allow-new            Permit patches to introduce keys (rows) not present in base.
     --extra-cols MODE      How to handle patch columns absent from the base:
-                           error, warn, or allow. [default: error]
+                           error, warn, or allow. These columns are never
+                           written to the output; the mode only controls whether
+                           their presence is an error, a warning, or ignored.
+                           [default: error]
     --cell-conflicts MODE  How to handle a cell written by more than one patch
                            with differing values: error, warn, or allow. [default: warn]
     -h --help              Show this screen.
@@ -68,14 +71,12 @@ class PatchSet:
     """The folded-together result of all patches, before materializing onto the base.
 
     cell_values maps each string-space key tuple to the final {column: value}
-    for the cells patches touched. new_keys lists keys absent from the base in
-    first-seen order (only populated with allow_new). extra_cols lists patch
-    columns absent from the base that should be kept, in first-seen order.
+    for the cells patches touched (base columns only). new_keys lists keys absent
+    from the base in first-seen order (only populated with allow_new).
     """
 
     cell_values: dict[tuple, dict[str, str]] = field(default_factory=dict)
     new_keys: list[tuple] = field(default_factory=list)
-    extra_cols: list[str] = field(default_factory=list)
 
 
 def _require_key_cols(df: pl.DataFrame, key_cols: list[str], label: str) -> None:
@@ -107,14 +108,14 @@ def _resolve_cell_conflict(
 
 
 def _check_extra_cols(idx: int, extras: list[str], mode: Mode) -> None:
-    """Handle patch columns absent from the base per mode (caller keeps them)."""
+    """Notice patch columns absent from the base per mode; they are never kept."""
     if not extras:
         return
     detail = f"Patch {idx} has columns not in base CSV: {sorted(extras)}"
     if mode is Mode.ERROR:
         raise ValueError(detail)
     if mode is Mode.WARN:
-        logger.warning(f"{detail} (including them)")
+        logger.warning(f"{detail} (ignoring them)")
 
 
 def collect_patches(
@@ -129,8 +130,9 @@ def collect_patches(
 ) -> PatchSet:
     """Fold patches (applied left-to-right, last write wins) into a PatchSet.
 
-    Validates key columns, classifies extra columns, detects cell conflicts, and
-    flags unknown keys -- all without touching the base dataframe itself.
+    Validates key columns, notices extra columns (which are never recorded or
+    materialized), detects cell conflicts, and flags unknown keys -- all without
+    touching the base dataframe itself.
     """
     result = PatchSet()
     new_key_set: set[tuple] = set()
@@ -138,11 +140,9 @@ def collect_patches(
     for idx, patch in enumerate(patches):
         _require_key_cols(patch, key_cols, f"Patch {idx}")
         value_cols = [c for c in patch.columns if c not in key_cols]
-        extras = [
-            c for c in value_cols if c not in base_cols and c not in result.extra_cols
-        ]
+        extras = [c for c in value_cols if c not in base_cols]
         _check_extra_cols(idx, extras, extra_cols)
-        result.extra_cols.extend(extras)
+        update_cols = [c for c in value_cols if c in base_cols]
 
         patch_s = patch.select([pl.col(c).cast(pl.Utf8) for c in patch.columns])
         for row in patch_s.iter_rows(named=True):
@@ -155,7 +155,7 @@ def collect_patches(
                     )
                 result.new_keys.append(kt)
                 new_key_set.add(kt)
-            for col in value_cols:
+            for col in update_cols:
                 _record_cell(result, key_cols, kt, col, row[col], cell_conflicts)
 
     return result
@@ -219,11 +219,8 @@ def _materialize(
     patch_set: PatchSet,
 ) -> pl.DataFrame:
     """Render patch_set onto base, returning a string-valued, key-sorted frame."""
-    base_cols = list(base.columns)
-    out_cols = base_cols + patch_set.extra_cols
-    work = base.select([pl.col(c).cast(pl.Utf8) for c in base_cols])
-    if patch_set.extra_cols:
-        work = work.with_columns([pl.lit("").alias(c) for c in patch_set.extra_cols])
+    out_cols = list(base.columns)
+    work = base.select([pl.col(c).cast(pl.Utf8) for c in out_cols])
 
     existing_rows = [
         {**dict(zip(key_cols, kt)), **cols}
@@ -251,10 +248,10 @@ def apply_patches(
 ) -> pl.DataFrame:
     """Apply sparse patch dataframes to base and return the materialized result.
 
-    The returned dataframe has the base's columns (in base order), followed by any
-    extra patch columns that were kept (when extra_cols is not ERROR), and is
-    sorted by key_cols. Key columns keep their original dtypes; all other
-    columns are returned as strings.
+    The returned dataframe has exactly the base's columns, in base order, sorted
+    by key_cols. Patch columns absent from the base are never written to the
+    output; extra_cols only controls whether their presence is flagged. Key
+    columns keep their original dtypes; all other columns are returned as strings.
 
     Raises ValueError for missing key columns, unknown keys (without allow_new),
     disallowed extra columns, or conflicting cells (with cell_conflicts=ERROR).

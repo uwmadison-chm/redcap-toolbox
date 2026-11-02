@@ -108,17 +108,17 @@ def test_extra_cols_error_by_default():
         apply_patches(base, [patch], KEY)
 
 
-def test_extra_cols_warn_includes_column(caplog):
+def test_extra_cols_warn_drops_column(caplog):
     base = create_standard_df()
     patch = patch_df(
         record_id=["1"], redcap_event_name=["scr_arm_1"], qc_note=["looks ok"]
     )
     with caplog.at_level(logging.WARNING):
         result = apply_patches(base, [patch], KEY, extra_cols=Mode.WARN)
-    assert "qc_note" in result.columns
+    # The extra column is never materialized; the mode is only a notice.
+    assert "qc_note" not in result.columns
+    assert list(result.columns) == list(base.columns)
     assert any("not in base CSV" in r.message for r in caplog.records)
-    row = result.filter(pl.col("record_id") == 1)
-    assert row["qc_note"][0] == "looks ok"
 
 
 def test_extra_cols_allow_is_silent(caplog):
@@ -126,7 +126,8 @@ def test_extra_cols_allow_is_silent(caplog):
     patch = patch_df(record_id=["1"], redcap_event_name=["scr_arm_1"], qc_note=["ok"])
     with caplog.at_level(logging.WARNING):
         result = apply_patches(base, [patch], KEY, extra_cols=Mode.ALLOW)
-    assert "qc_note" in result.columns
+    assert "qc_note" not in result.columns
+    assert list(result.columns) == list(base.columns)
     assert caplog.records == []
 
 
@@ -211,7 +212,6 @@ def test_collect_patches_folds_last_write_wins():
     assert isinstance(result, PatchSet)
     assert result.cell_values[("2", "pre_arm_1")] == {"field1": "g", "field2": "h"}
     assert result.new_keys == []
-    assert result.extra_cols == []
 
 
 def test_collect_patches_records_new_keys_in_order():
@@ -222,12 +222,14 @@ def test_collect_patches_records_new_keys_in_order():
     assert result.new_keys == [("3", "scr_arm_1"), ("2", "scr_arm_1")]
 
 
-def test_collect_patches_tracks_extra_cols_once():
+def test_collect_patches_ignores_extra_cols():
     base_keys = {("1", "scr_arm_1")}
-    p1 = patch_df(record_id=["1"], redcap_event_name=["scr_arm_1"], qc_note=["a"])
-    p2 = patch_df(record_id=["1"], redcap_event_name=["scr_arm_1"], qc_note=["b"])
-    result = collect(base_keys, [], [p1, p2], extra_cols=Mode.ALLOW)
-    assert result.extra_cols == ["qc_note"]
+    p = patch_df(
+        record_id=["1"], redcap_event_name=["scr_arm_1"], field1=["a"], qc_note=["b"]
+    )
+    result = collect(base_keys, ["field1"], [p], extra_cols=Mode.ALLOW)
+    # Extra columns are noticed but never recorded as cell values.
+    assert result.cell_values[("1", "scr_arm_1")] == {"field1": "a"}
 
 
 def test_mode_from_str_is_case_insensitive():
