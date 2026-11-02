@@ -28,7 +28,7 @@ classifiers = [
 dependencies = [
     "docopt-ng>=0.9.0",
     "polars>=1.36.1",
-    "pycap>=2.7.0",
+    "pycap @ https://github.com/redcap-tools/PyCap/archive/ffc2260dc9ad9c6041fac5e0f0fafd344c293b14.zip",
     "urllib3>=2.6.3,<3.0.0",
 ]
 
@@ -54,9 +54,6 @@ dev = [
     "rust-just>=1.53.0",
     "ty>=0.0.2",
 ]
-
-[tool.uv.sources]
-pycap = { url = "https://github.com/uwmadison-chm/PyCap/archive/refs/tags/2.7.1-chm.zip" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
